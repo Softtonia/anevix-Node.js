@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// connectDB();
+ connectDB();
 
 app.use("/api/admin", adminRoutes);
 app.use("/api/users", userRoutes);

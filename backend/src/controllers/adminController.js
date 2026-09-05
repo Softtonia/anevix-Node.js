@@ -15,7 +15,7 @@ const registerAdmin = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const admin = new Admin.create({
+    const admin = await Admin.create({
       name,
       email,
       password: hashedPassword,

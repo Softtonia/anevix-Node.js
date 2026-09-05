@@ -1,0 +1,19 @@
+{
+  "id": "e7b0e27c-6e8d-4e94-9b2f-9c04df4a7810",
+  "name": "Anevix Local Env",
+  "values": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:5000/api",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "TOKEN",
+      "value": "your_jwt_token_here",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}
