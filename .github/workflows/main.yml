@@ -31,14 +31,6 @@ env:
 
   # ============================================================
   # POSTMAN
-  # Workspace:
-  # 42f2b257-2d72-44e6-a4dc-0b8ba613f1a2
-  #
-  # Collection UID:
-  # 40673074-219bffd2-5145-42ed-8329-1311ac7411da
-  #
-  # Active Environment UID:
-  # 40673074-bc557625-2851-431f-bb44-9514a657712b
   # ============================================================
   POSTMAN_WORKSPACE_ID: "42f2b257-2d72-44e6-a4dc-0b8ba613f1a2"
   POSTMAN_COLLECTION_ID: "40673074-219bffd2-5145-42ed-8329-1311ac7411da"
@@ -58,12 +50,13 @@ jobs:
     steps:
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 18
-        uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
-          node-version: "18"
+          # Match the current production server runtime.
+          node-version: "18.19.1"
           cache: npm
 
       - name: Verify Project
@@ -71,7 +64,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "===== NODE ====="
           node --version
+
+          echo
+          echo "===== NPM ====="
           npm --version
 
           test -f package.json || {
@@ -80,37 +77,60 @@ jobs:
           }
 
           test -f package-lock.json || {
-              echo "::error::package-lock.json is required."
+              echo "::error::package-lock.json is required for deterministic deployment."
               exit 1
           }
+
+          ENTRY_FILE="$(
+              node -p '
+              const p = require("./package.json");
+              p.main || "server.js";
+              '
+          )"
+
+          echo "Production entry file: $ENTRY_FILE"
+
+          test -f "$ENTRY_FILE" || {
+              echo "::error::Production entry file does not exist: $ENTRY_FILE"
+              echo "::error::Current package.json main must point to a real Node entry file."
+              exit 1
+          }
+
+          echo
+          echo "===== PACKAGE SCRIPTS ====="
 
           node - <<'NODE'
           const pkg = require("./package.json");
 
-          if (!pkg.scripts || !pkg.scripts.start) {
-              console.error("ERROR: package.json must contain scripts.start");
-              process.exit(1);
-          }
+          console.log(
+              JSON.stringify(
+                  pkg.scripts || {},
+                  null,
+                  2
+              )
+          );
 
-          console.log("Start script:", pkg.scripts.start);
-
-          if (pkg.scripts.build) {
-              console.log("Build script:", pkg.scripts.build);
-          } else {
-              console.log("Build script: not defined; build step will be skipped.");
-          }
+          console.log(
+              "No scripts.start requirement. PM2 will run package.json main directly."
+          );
           NODE
+
+          echo "Project verification PASS"
 
       - name: Install Dependencies
         shell: bash
         run: |
           set -euo pipefail
+
           npm ci --include=dev
+
+          echo "npm ci PASS"
 
       - name: Run Tests
         shell: bash
         run: |
           set -euo pipefail
+
           npm test --if-present
 
       - name: Build Application
@@ -120,11 +140,22 @@ jobs:
 
           if node -e '
             const p = require("./package.json");
-            process.exit(p.scripts && p.scripts.build ? 0 : 1);
+            process.exit(
+                p.scripts && p.scripts.build
+                    ? 0
+                    : 1
+            );
           '; then
+
               npm run build
+
+              echo "Build PASS"
+
           else
-              echo "No build script found. Skipping build."
+
+              echo "No build script found."
+              echo "Build skipped."
+
           fi
 
 
@@ -143,16 +174,20 @@ jobs:
     steps:
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Create Deployment ID
         shell: bash
         run: |
           set -euo pipefail
 
-          DEPLOY_ID="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          DEPLOY_ID="$(
+              date -u +%Y%m%d%H%M%S
+          )-${GITHUB_SHA::7}"
 
-          echo "DEPLOY_ID=$DEPLOY_ID" >> "$GITHUB_ENV"
+          echo "DEPLOY_ID=$DEPLOY_ID" \
+              >> "$GITHUB_ENV"
+
           echo "Deploy ID: $DEPLOY_ID"
 
 
@@ -162,6 +197,7 @@ jobs:
 
       - name: Setup SSH
         shell: bash
+
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
 
@@ -169,26 +205,34 @@ jobs:
           set -euo pipefail
 
           if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
+
               echo "::error::DEV_SSH_KEY repository secret is missing."
+
               exit 1
+
           fi
 
           mkdir -p "$HOME/.ssh"
+
           chmod 700 "$HOME/.ssh"
 
           printf '%s\n' "$SSH_PRIVATE_KEY" \
               | tr -d '\r' \
               > "$HOME/.ssh/anevix_deploy_key"
 
-          chmod 600 "$HOME/.ssh/anevix_deploy_key"
+          chmod 600 \
+              "$HOME/.ssh/anevix_deploy_key"
 
           if ! ssh-keygen \
               -y \
               -f "$HOME/.ssh/anevix_deploy_key" \
               >/dev/null 2>&1
           then
+
               echo "::error::DEV_SSH_KEY is not a valid OpenSSH private key."
+
               exit 1
+
           fi
 
           HOST_KEY_FILE="$HOME/.ssh/anevix_host_key"
@@ -199,6 +243,7 @@ jobs:
 
           for ATTEMPT in 1 2 3 4 5
           do
+
               echo "ssh-keyscan attempt ${ATTEMPT}/5"
 
               if ssh-keyscan \
@@ -210,24 +255,34 @@ jobs:
                   2>/dev/null \
                   > "$HOST_KEY_FILE"
               then
+
                   if [ -s "$HOST_KEY_FILE" ]; then
+
                       KEYSCAN_OK=1
+
                       break
+
                   fi
+
               fi
 
               sleep "$((ATTEMPT * 3))"
+
           done
 
           if [ "$KEYSCAN_OK" -ne 1 ]; then
+
               echo "::error::Unable to retrieve SSH host key."
+
               exit 1
+
           fi
 
           EXPECTED_FINGERPRINT="SHA256:9UPe5ZfQsWabEgPmXYRqZas3s7PEFS9e+kDqkgv2ans"
 
           ACTUAL_FINGERPRINT="$(
-              ssh-keygen -lf "$HOST_KEY_FILE" \
+              ssh-keygen \
+                  -lf "$HOST_KEY_FILE" \
                   | awk 'NR == 1 {print $2}'
           )"
 
@@ -235,12 +290,19 @@ jobs:
           echo "Actual fingerprint:   $ACTUAL_FINGERPRINT"
 
           if [ "$ACTUAL_FINGERPRINT" != "$EXPECTED_FINGERPRINT" ]; then
+
               echo "::error::SSH host fingerprint mismatch."
+
               exit 1
+
           fi
 
-          cp "$HOST_KEY_FILE" "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/known_hosts"
+          cp \
+              "$HOST_KEY_FILE" \
+              "$HOME/.ssh/known_hosts"
+
+          chmod 600 \
+              "$HOME/.ssh/known_hosts"
 
           cat > "$HOME/.ssh/config" <<EOF
           Host anevix-dev
@@ -259,11 +321,36 @@ jobs:
               ServerAliveCountMax 3
           EOF
 
-          chmod 600 "$HOME/.ssh/config"
+          chmod 600 \
+              "$HOME/.ssh/config"
 
           rm -f "$HOST_KEY_FILE"
 
           echo "SSH setup PASS"
+
+
+      # ========================================================
+      # SSH AUTH
+      # ========================================================
+
+      - name: Verify SSH Authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh anevix-dev '
+              set -e
+
+              cd "$HOME"
+
+              echo "SSH AUTHENTICATION PASS"
+              echo "User: $(whoami)"
+              echo "Host: $(hostname)"
+
+              node --version
+              npm --version
+              pm2 --version
+          '
 
 
       # ========================================================
@@ -298,15 +385,31 @@ jobs:
               rsync \
               python3
           do
+
               if ! command -v "$COMMAND" >/dev/null 2>&1; then
+
                   echo "ERROR: Required command missing: $COMMAND"
+
                   exit 1
+
               fi
+
           done
 
-          echo "Node: $(node --version)"
+          NODE_VERSION="$(node --version)"
+
+          echo "Node: $NODE_VERSION"
           echo "npm:  $(npm --version)"
           echo "PM2:  $(pm2 --version)"
+
+          case "$NODE_VERSION" in
+              v18.*)
+                  ;;
+              *)
+                  echo "ERROR: Production server must currently use Node 18.x."
+                  exit 1
+                  ;;
+          esac
 
           test -f "$SHARED_PATH/.env" || {
               echo "ERROR: $SHARED_PATH/.env is missing."
@@ -353,6 +456,16 @@ jobs:
               exit 1
           }
 
+          grep -Eq '^MONGO_URL=.+$' "$SHARED_PATH/.env" || {
+              echo "ERROR: MONGO_URL is missing or empty in shared .env"
+              exit 1
+          }
+
+          grep -Eq '^JWT_SECRET=.+$' "$SHARED_PATH/.env" || {
+              echo "ERROR: JWT_SECRET is missing or empty in shared .env"
+              exit 1
+          }
+
           echo "Server preflight PASS"
 
           REMOTE
@@ -371,6 +484,7 @@ jobs:
 
           for ATTEMPT in 1 2 3
           do
+
               echo "Rsync attempt ${ATTEMPT}/3"
 
               if rsync \
@@ -386,8 +500,8 @@ jobs:
                   --exclude="/.env" \
                   --exclude="/.env.*" \
                   --exclude="/node_modules/" \
-                  --exclude="/logs/" \
-                  --exclude="/uploads/" \
+                  --exclude="/logs" \
+                  --exclude="/uploads" \
                   --exclude="/coverage/" \
                   --exclude="/docs/" \
                   --exclude="/README.md" \
@@ -395,19 +509,29 @@ jobs:
                   ./ \
                   "anevix-dev:${DEPLOY_BASE_PATH}/current/"
               then
+
                   RSYNC_OK=1
+
                   echo "Upload PASS"
+
                   break
+
               fi
 
               if [ "$ATTEMPT" -lt 3 ]; then
+
                   sleep "$((ATTEMPT * 10))"
+
               fi
+
           done
 
           if [ "$RSYNC_OK" -ne 1 ]; then
+
               echo "::error::Application upload failed."
+
               exit 1
+
           fi
 
 
@@ -449,16 +573,50 @@ jobs:
               exit 1
           }
 
-          node - <<'NODE'
-          const pkg = require("./package.json");
 
-          if (!pkg.scripts || !pkg.scripts.start) {
-              console.error("ERROR: package.json must contain scripts.start");
-              process.exit(1);
+          # ------------------------------------------------------
+          # PRODUCTION ENTRY FILE
+          # ------------------------------------------------------
+
+          ENTRY_FILE="$(
+              node -p '
+              const p = require("./package.json");
+              p.main || "server.js";
+              '
+          )"
+
+          if [ -z "$ENTRY_FILE" ]; then
+
+              echo "ERROR: package.json main is empty."
+
+              exit 1
+
+          fi
+
+          test -f "$ENTRY_FILE" || {
+              echo "ERROR: Production entry file missing: $ENTRY_FILE"
+              exit 1
           }
 
-          console.log("Start script:", pkg.scripts.start);
-          NODE
+          echo "Production entry: $ENTRY_FILE"
+
+          echo
+          echo "Package scripts:"
+
+          node -e '
+          const p = require("./package.json");
+          console.log(
+              JSON.stringify(
+                  p.scripts || {},
+                  null,
+                  2
+              )
+          );
+          '
+
+          echo
+          echo "NOTE: npm start is NOT required."
+          echo "PM2 will run the production entry file directly."
 
 
           # ------------------------------------------------------
@@ -469,8 +627,11 @@ jobs:
               [ -e "$CURRENT_PATH/.env" ] && \
               [ ! -L "$CURRENT_PATH/.env" ]
           then
+
               echo "ERROR: current/.env exists but is not a symlink."
+
               exit 1
+
           fi
 
           rm -f "$CURRENT_PATH/.env"
@@ -496,22 +657,32 @@ jobs:
           # PERSISTENT UPLOADS
           # ------------------------------------------------------
 
-          mkdir -p "$SHARED_PATH/uploads"
+          mkdir -p \
+              "$SHARED_PATH/uploads"
 
           if \
               [ -e "$CURRENT_PATH/uploads" ] && \
               [ ! -L "$CURRENT_PATH/uploads" ]
           then
+
               echo "ERROR: current/uploads exists but is not a symlink."
               echo "Move existing uploads to shared/uploads first."
+
               exit 1
+
           fi
 
-          rm -f "$CURRENT_PATH/uploads"
+          rm -f \
+              "$CURRENT_PATH/uploads"
 
           ln -s \
               "$SHARED_PATH/uploads" \
               "$CURRENT_PATH/uploads"
+
+          test -L "$CURRENT_PATH/uploads" || {
+              echo "ERROR: uploads symlink failed."
+              exit 1
+          }
 
           echo "uploads symlink PASS"
 
@@ -528,13 +699,25 @@ jobs:
 
           if node -e '
             const p = require("./package.json");
-            process.exit(p.scripts && p.scripts.build ? 0 : 1);
+
+            process.exit(
+                p.scripts && p.scripts.build
+                    ? 0
+                    : 1
+            );
           '; then
+
               echo "Building application..."
+
               npm run build
+
               echo "Build PASS"
+
           else
-              echo "No build script found. Build skipped."
+
+              echo "No build script found."
+              echo "Build skipped."
+
           fi
 
           echo "Pruning development dependencies..."
@@ -545,36 +728,70 @@ jobs:
 
 
           # ------------------------------------------------------
-          # PM2
+          # PM2 CONFIG
           # ------------------------------------------------------
 
-          if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
+          PM2_CONFIG="$CURRENT_PATH/ecosystem.deploy.cjs"
 
-              echo "Reloading PM2 process..."
+          cat > "$PM2_CONFIG" <<EOF
+          module.exports = {
+            apps: [
+              {
+                name: "${PM2_APP_NAME}",
+                cwd: "${CURRENT_PATH}",
+                script: "${ENTRY_FILE}",
 
-              pm2 reload "$PM2_APP_NAME" \
-                  --update-env
+                instances: 1,
+                exec_mode: "fork",
 
-          else
+                autorestart: true,
+                watch: false,
+                time: true,
 
-              echo "Starting PM2 process..."
+                max_memory_restart: "500M",
 
-              pm2 start npm \
-                  --name "$PM2_APP_NAME" \
-                  --cwd "$CURRENT_PATH" \
-                  -- start
+                env: {
+                  NODE_ENV: "production",
+                  HOST: "127.0.0.1",
+                  PORT: "${NODE_PORT}"
+                },
 
-          fi
+                out_file: "${SHARED_PATH}/logs/pm2-out.log",
+                error_file: "${SHARED_PATH}/logs/pm2-error.log",
+                merge_logs: true
+              }
+            ]
+          };
+          EOF
+
+          echo "PM2 configuration generated."
+
+
+          # ------------------------------------------------------
+          # PM2 START / RELOAD
+          # ------------------------------------------------------
+
+          echo "Starting/reloading PM2 application..."
+
+          pm2 startOrReload \
+              "$PM2_CONFIG" \
+              --only "$PM2_APP_NAME" \
+              --update-env
 
           pm2 save
 
-          sleep 3
+          sleep 4
 
           pm2 describe "$PM2_APP_NAME"
 
-          if ! pm2 pid "$PM2_APP_NAME" \
-              | grep -Eq '^[1-9][0-9]*$'
-          then
+          PM2_PID="$(
+              pm2 pid "$PM2_APP_NAME" \
+                  | tail -n 1 \
+                  | tr -d '[:space:]'
+          )"
+
+          if ! [[ "$PM2_PID" =~ ^[1-9][0-9]*$ ]]; then
+
               echo "ERROR: PM2 process is not running."
 
               pm2 logs "$PM2_APP_NAME" \
@@ -583,8 +800,10 @@ jobs:
                   || true
 
               exit 1
+
           fi
 
+          echo "PM2 PID: $PM2_PID"
           echo "PM2 process PASS"
 
 
@@ -596,17 +815,23 @@ jobs:
 
           if ! python3 - "$NODE_PORT" <<'PY'
           import http.client
+          import json
           import sys
           import time
 
           port = int(sys.argv[1])
+
           last_error = None
 
-          for attempt in range(1, 6):
+          for attempt in range(1, 7):
+
               connection = None
 
               try:
-                  print(f"Local Node attempt {attempt}/5")
+
+                  print(
+                      f"Local Node attempt {attempt}/6"
+                  )
 
                   connection = http.client.HTTPConnection(
                       "127.0.0.1",
@@ -618,7 +843,7 @@ jobs:
                       "GET",
                       "/",
                       headers={
-                          "Accept": "application/json,text/plain,*/*",
+                          "Accept": "application/json",
                           "Connection": "close",
                       },
                   )
@@ -630,20 +855,42 @@ jobs:
                       errors="replace",
                   )
 
-                  print("Status:", response.status)
-                  print("Body:", body[:500])
-
-                  # Any HTTP response below 500 proves that the
-                  # Node process is listening and serving HTTP.
-                  if 100 <= response.status < 500:
-                      print("Local Node health check PASS")
-                      sys.exit(0)
-
-                  raise RuntimeError(
-                      f"Unexpected HTTP {response.status}"
+                  print(
+                      "Status:",
+                      response.status,
                   )
 
+                  print(
+                      "Body:",
+                      body[:1000],
+                  )
+
+                  if response.status != 200:
+
+                      raise RuntimeError(
+                          "Expected HTTP 200, got "
+                          + str(response.status)
+                      )
+
+                  payload = json.loads(body)
+
+                  if (
+                      payload.get("message")
+                      != "Anevix Backend is running"
+                  ):
+
+                      raise RuntimeError(
+                          "Unexpected health response"
+                      )
+
+                  print(
+                      "Local Node health check PASS"
+                  )
+
+                  sys.exit(0)
+
               except Exception as exc:
+
                   last_error = exc
 
                   print(
@@ -651,11 +898,14 @@ jobs:
                       repr(exc),
                   )
 
-                  if attempt < 5:
+                  if attempt < 6:
+
                       time.sleep(attempt * 2)
 
               finally:
+
                   if connection is not None:
+
                       try:
                           connection.close()
                       except Exception:
@@ -670,12 +920,16 @@ jobs:
           sys.exit(1)
           PY
           then
+
+              echo "ERROR: Node health check failed."
+
               pm2 logs "$PM2_APP_NAME" \
                   --lines 100 \
                   --nostream \
                   || true
 
               exit 1
+
           fi
 
 
@@ -694,6 +948,7 @@ jobs:
 
           echo "Deploy ID: $DEPLOY_ID"
           echo "Path:      $CURRENT_PATH"
+          echo "Entry:     $ENTRY_FILE"
           echo "PM2:       $PM2_APP_NAME"
           echo "Port:      $NODE_PORT"
 
@@ -713,6 +968,7 @@ jobs:
 
           python3 - "$APP_HOST" "$HEALTH_PATH" <<'PY'
           import http.client
+          import json
           import ssl
           import sys
           import time
@@ -723,9 +979,11 @@ jobs:
           last_error = None
 
           for attempt in range(1, 6):
+
               connection = None
 
               try:
+
                   print(
                       f"Public HTTPS attempt {attempt}/5: "
                       f"https://{host}{path}"
@@ -742,7 +1000,7 @@ jobs:
                       "GET",
                       path,
                       headers={
-                          "Accept": "application/json,text/plain,*/*",
+                          "Accept": "application/json",
                           "Connection": "close",
                       },
                   )
@@ -754,18 +1012,42 @@ jobs:
                       errors="replace",
                   )
 
-                  print("HTTP status:", response.status)
-                  print("Response:", body[:1000])
-
-                  if 100 <= response.status < 500:
-                      print("Public HTTPS API health check PASS")
-                      sys.exit(0)
-
-                  raise RuntimeError(
-                      f"Unexpected HTTP {response.status}"
+                  print(
+                      "HTTP status:",
+                      response.status,
                   )
 
+                  print(
+                      "Response:",
+                      body[:1000],
+                  )
+
+                  if response.status != 200:
+
+                      raise RuntimeError(
+                          "Expected HTTP 200, got "
+                          + str(response.status)
+                      )
+
+                  payload = json.loads(body)
+
+                  if (
+                      payload.get("message")
+                      != "Anevix Backend is running"
+                  ):
+
+                      raise RuntimeError(
+                          "Unexpected public health response"
+                      )
+
+                  print(
+                      "Public HTTPS API health check PASS"
+                  )
+
+                  sys.exit(0)
+
               except Exception as exc:
+
                   last_error = exc
 
                   print(
@@ -774,10 +1056,13 @@ jobs:
                   )
 
                   if attempt < 5:
+
                       time.sleep(attempt * 3)
 
               finally:
+
                   if connection is not None:
+
                       try:
                           connection.close()
                       except Exception:
@@ -805,13 +1090,21 @@ jobs:
           set +e
 
           if [ ! -f "$HOME/.ssh/anevix_deploy_key" ]; then
-              echo "SSH key unavailable. Remote diagnostics skipped."
+
+              echo "SSH key unavailable."
+              echo "Remote diagnostics skipped."
+
               exit 0
+
           fi
 
           if [ ! -f "$HOME/.ssh/config" ]; then
-              echo "SSH config unavailable. Remote diagnostics skipped."
+
+              echo "SSH config unavailable."
+              echo "Remote diagnostics skipped."
+
               exit 0
+
           fi
 
           ssh anevix-dev \
@@ -821,6 +1114,7 @@ jobs:
           set +e
 
           CURRENT_PATH="$BASE_PATH/current"
+          SHARED_PATH="$BASE_PATH/shared"
 
           echo "========================================"
           echo "ANEVIX FAILURE DIAGNOSTICS"
@@ -828,38 +1122,62 @@ jobs:
 
           echo
           echo "===== PM2 ====="
-          pm2 list || true
+
+          pm2 list \
+              || true
 
           echo
           echo "===== PM2 PROCESS ====="
-          pm2 describe "$PM2_APP_NAME" || true
+
+          pm2 describe "$PM2_APP_NAME" \
+              || true
 
           echo
           echo "===== PM2 LOGS ====="
+
           pm2 logs "$PM2_APP_NAME" \
               --lines 100 \
               --nostream \
               || true
 
           echo
+          echo "===== APP LOG FILES ====="
+
+          tail -n 100 \
+              "$SHARED_PATH/logs/pm2-error.log" \
+              2>/dev/null \
+              || true
+
+          tail -n 100 \
+              "$SHARED_PATH/logs/pm2-out.log" \
+              2>/dev/null \
+              || true
+
+          echo
           echo "===== PORT ====="
+
           ss -ltnp \
               | grep ":${NODE_PORT} " \
               || true
 
           echo
           echo "===== DEPLOY ID ====="
+
           cat "$CURRENT_PATH/DEPLOY_ID" \
               2>/dev/null \
               || true
 
           echo
           echo "===== DISK ====="
-          df -h "$CURRENT_PATH" || true
+
+          df -h "$CURRENT_PATH" \
+              || true
 
           echo
           echo "===== MEMORY ====="
-          free -h || true
+
+          free -h \
+              || true
 
           REMOTE
 
@@ -887,17 +1205,11 @@ jobs:
 
   # ============================================================
   # POSTMAN SYNC
-  #
-  # Uses the collection + active environment from the supplied
-  # Postman share URL.
-  #
-  # Runs after successful deployment.
-  # Completely separate from SSH/server deployment.
-  # Postman failure never changes the deployment result.
   # ============================================================
 
   sync-postman:
     name: Sync Postman
+
     needs:
       - deploy
 
@@ -910,7 +1222,7 @@ jobs:
     steps:
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         continue-on-error: true
 
       - name: Sync Collection And Environment
@@ -923,15 +1235,21 @@ jobs:
           echo "========================================"
 
           if [ -z "${POSTMAN_API_KEY:-}" ]; then
+
               echo "::warning::POSTMAN_API_KEY secret is missing."
               echo "Postman sync skipped."
+
               exit 0
+
           fi
 
           if ! command -v jq >/dev/null 2>&1; then
+
               echo "::warning::jq is unavailable."
               echo "Postman sync skipped."
+
               exit 0
+
           fi
 
           COLLECTION_FILE="$(
@@ -963,19 +1281,25 @@ jobs:
 
               if [[ "$VALUE" =~ ^[0-9]+-([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})$ ]]
               then
+
                   printf '%s' "${BASH_REMATCH[1]}"
+
               else
+
                   printf '%s' "$VALUE"
+
               fi
           }
 
 
           COLLECTION_ID="$(
-              normalize_postman_id "$POSTMAN_COLLECTION_ID"
+              normalize_postman_id \
+                  "$POSTMAN_COLLECTION_ID"
           )"
 
           ENVIRONMENT_ID="$(
-              normalize_postman_id "$POSTMAN_ENVIRONMENT_ID"
+              normalize_postman_id \
+                  "$POSTMAN_ENVIRONMENT_ID"
           )"
 
 
@@ -991,6 +1315,7 @@ jobs:
           if [ -z "$COLLECTION_FILE" ]; then
 
               echo "::warning::No *.postman_collection.json found under docs/postman."
+
               SYNC_ERRORS=1
 
           elif ! jq -e '
@@ -1002,6 +1327,7 @@ jobs:
           then
 
               echo "::warning::Postman collection JSON is invalid."
+
               SYNC_ERRORS=1
 
           else
@@ -1039,15 +1365,21 @@ jobs:
                   [ "$CURL_EXIT" -ne 0 ] || \
                   [ "$COLLECTION_STATUS" != "200" ]
               then
+
                   echo "::warning::Postman collection sync failed."
 
                   if [ -s "$COLLECTION_RESPONSE" ]; then
+
                       cat "$COLLECTION_RESPONSE"
+
                   fi
 
                   SYNC_ERRORS=1
+
               else
+
                   echo "Postman collection sync PASS"
+
               fi
 
           fi
@@ -1060,6 +1392,7 @@ jobs:
           if [ -z "$ENVIRONMENT_FILE" ]; then
 
               echo "::warning::No *.postman_environment.json found under docs/postman."
+
               SYNC_ERRORS=1
 
           elif ! jq -e '
@@ -1070,6 +1403,7 @@ jobs:
           then
 
               echo "::warning::Postman environment JSON is invalid."
+
               SYNC_ERRORS=1
 
           else
@@ -1080,14 +1414,33 @@ jobs:
               jq \
                   --arg baseUrl "$APP_URL" \
                   '
+                  .values = (.values // [])
+                  |
                   .values = (
-                      (.values // [])
-                      | map(
-                          if .key == "base_url"
-                          then .value = $baseUrl
-                          else .
-                          end
+                      if any(
+                          .values[];
+                          .key == "base_url"
                       )
+                      then
+                          .values
+                          | map(
+                              if .key == "base_url"
+                              then
+                                  .value = $baseUrl
+                                  | .enabled = true
+                              else
+                                  .
+                              end
+                          )
+                      else
+                          .values + [
+                              {
+                                  key: "base_url",
+                                  value: $baseUrl,
+                                  enabled: true
+                              }
+                          ]
+                      end
                   )
                   |
                   {
@@ -1125,15 +1478,21 @@ jobs:
                   [ "$CURL_EXIT" -ne 0 ] || \
                   [ "$ENVIRONMENT_STATUS" != "200" ]
               then
+
                   echo "::warning::Postman environment sync failed."
 
                   if [ -s "$ENVIRONMENT_RESPONSE" ]; then
+
                       cat "$ENVIRONMENT_RESPONSE"
+
                   fi
 
                   SYNC_ERRORS=1
+
               else
+
                   echo "Postman environment sync PASS"
+
               fi
 
           fi
@@ -1143,10 +1502,14 @@ jobs:
           echo "========================================"
 
           if [ "$SYNC_ERRORS" -eq 0 ]; then
+
               echo "POSTMAN SYNC SUCCESS"
+
           else
+
               echo "POSTMAN SYNC COMPLETED WITH WARNINGS"
               echo "Anevix deployment was NOT affected."
+
           fi
 
           echo "========================================"
