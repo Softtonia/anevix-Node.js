@@ -14,6 +14,9 @@ permissions:
   contents: read
 
 env:
+  # ============================================================
+  # SERVER / APPLICATION
+  # ============================================================
   DEPLOY_HOST: "185.131.53.137"
   DEPLOY_PORT: "2222"
   DEPLOY_USER: "deploy"
@@ -25,11 +28,18 @@ env:
   NODE_PORT: "3101"
   PM2_APP_NAME: "anevix-api"
 
+  # ============================================================
+  # POSTMAN
+  # ============================================================
   POSTMAN_WORKSPACE_ID: "42f2b257-2d72-44e6-a4dc-0b8ba613f1a2"
   POSTMAN_COLLECTION_ID: "40673074-219bffd2-5145-42ed-8329-1311ac7411da"
   POSTMAN_ENVIRONMENT_ID: "40673074-bc557625-2851-431f-bb44-9514a657712b"
 
 jobs:
+
+  # ============================================================
+  # DEPLOY
+  # ============================================================
 
   deploy:
     name: Deploy Anevix API
@@ -52,6 +62,10 @@ jobs:
           echo "DEPLOY_ID=$DEPLOY_ID" >> "$GITHUB_ENV"
           echo "Deploy ID: $DEPLOY_ID"
 
+
+      # ========================================================
+      # SSH
+      # ========================================================
 
       - name: Setup SSH
         shell: bash
@@ -84,11 +98,14 @@ jobs:
           fi
 
           HOST_KEY_FILE="$HOME/.ssh/anevix_host_key"
+          rm -f "$HOST_KEY_FILE"
 
           KEYSCAN_OK=0
 
           for ATTEMPT in 1 2 3 4 5
           do
+              echo "ssh-keyscan attempt ${ATTEMPT}/5"
+
               if ssh-keyscan \
                   -4 \
                   -T 10 \
@@ -153,6 +170,10 @@ jobs:
           echo "SSH setup PASS"
 
 
+      # ========================================================
+      # SERVER PREFLIGHT
+      # ========================================================
+
       - name: Server Preflight
         shell: bash
         run: |
@@ -185,7 +206,7 @@ jobs:
           }
 
           if [ ! -f "$SHARED_PATH/.env" ]; then
-              echo "Shared .env not found. Creating placeholder."
+              echo "Shared .env not found. Creating empty shared .env."
               touch "$SHARED_PATH/.env"
               chmod 640 "$SHARED_PATH/.env"
           fi
@@ -197,6 +218,10 @@ jobs:
 
           REMOTE
 
+
+      # ========================================================
+      # UPLOAD
+      # ========================================================
 
       - name: Upload Application
         shell: bash
@@ -226,6 +251,10 @@ jobs:
 
           echo "Upload PASS"
 
+
+      # ========================================================
+      # INSTALL / DEPLOY
+      # ========================================================
 
       - name: Install And Deploy
         shell: bash
@@ -288,7 +317,7 @@ jobs:
 
 
           # ------------------------------------------------------
-          # Install / optional build
+          # Dependencies / optional build
           # ------------------------------------------------------
 
           npm ci --include=dev
@@ -320,10 +349,10 @@ jobs:
 
 
           # ------------------------------------------------------
-          # Runtime environment readiness
+          # Runtime env readiness
           #
-          # Missing runtime secrets do NOT fail deployment.
-          # Fill shared/.env later and rerun the workflow.
+          # Missing secrets do NOT fail code deployment.
+          # Fill shared/.env later and rerun workflow.
           # ------------------------------------------------------
 
           RUNTIME_READY=1
@@ -338,21 +367,19 @@ jobs:
 
           if [ "$RUNTIME_READY" -ne 1 ]; then
 
+              printf '%s\n' \
+                  "$DEPLOY_ID" \
+                  > "$CURRENT_PATH/DEPLOY_ID"
+
               echo
               echo "========================================"
               echo "CODE DEPLOYED - APP START SKIPPED"
               echo "========================================"
-              echo "Files and dependencies are deployed."
-              echo "Runtime .env is not complete yet."
-              echo "Fill:"
+              echo "Complete runtime values later in:"
               echo "$SHARED_PATH/.env"
               echo "Then rerun this workflow."
               echo "Existing PM2 process, if any, was not changed."
               echo "========================================"
-
-              printf '%s\n' \
-                  "$DEPLOY_ID" \
-                  > "$CURRENT_PATH/DEPLOY_ID"
 
               exit 0
 
@@ -518,6 +545,10 @@ jobs:
           REMOTE
 
 
+      # ========================================================
+      # CLEANUP
+      # ========================================================
+
       - name: Cleanup SSH
         if: always()
         shell: bash
@@ -534,8 +565,26 @@ jobs:
 
 
   # ============================================================
-  # POSTMAN
-  # Non-blocking. Never fails the deployment.
+  # POSTMAN SYNC
+  #
+  # Behavior:
+  # - If repository collection file is missing:
+  #   fetch it from Postman and add it to docs/postman.
+  #
+  # - If repository collection file already exists:
+  #   update the existing Postman collection from the repo file.
+  #
+  # - If repository environment file is missing:
+  #   create a SAFE template from the existing Postman environment.
+  #   Secret/current values are NOT committed to Git.
+  #
+  # - Existing remote environment values are preserved.
+  #   Only base_url is managed by this workflow.
+  #
+  # - Any newly created/updated repo Postman files are committed
+  #   back to the current branch.
+  #
+  # - Postman failures never affect the application deployment.
   # ============================================================
 
   sync-postman:
@@ -546,26 +595,54 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
+    permissions:
+      contents: write
+
     env:
       POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+      POSTMAN_API_BASE: "https://api.getpostman.com"
+
+      POSTMAN_COLLECTION_FILE: "docs/postman/Anevix.postman_collection.json"
+      POSTMAN_ENVIRONMENT_FILE: "docs/postman/Anevix.postman_environment.json"
 
     steps:
 
       - name: Checkout
         uses: actions/checkout@v7
-        continue-on-error: true
+        with:
+          fetch-depth: 0
+
 
       - name: Sync Collection And Environment
         shell: bash
+        continue-on-error: true
         run: |
           set +e
+
+          echo "========================================"
+          echo "ANEVIX POSTMAN SYNC"
+          echo "========================================"
 
           if [ -z "${POSTMAN_API_KEY:-}" ]; then
               echo "::warning::POSTMAN_API_KEY is missing. Postman sync skipped."
               exit 0
           fi
 
-          COLLECTION_FILE="$(
+          if ! command -v jq >/dev/null 2>&1; then
+              echo "::warning::jq is unavailable. Postman sync skipped."
+              exit 0
+          fi
+
+          mkdir -p docs/postman
+
+          CHANGED_REPO_FILES=0
+
+
+          # ------------------------------------------------------
+          # Locate existing repo files
+          # ------------------------------------------------------
+
+          EXISTING_COLLECTION_FILE="$(
               find docs/postman \
                   -maxdepth 1 \
                   -type f \
@@ -575,7 +652,7 @@ jobs:
                   | head -n 1
           )"
 
-          ENVIRONMENT_FILE="$(
+          EXISTING_ENVIRONMENT_FILE="$(
               find docs/postman \
                   -maxdepth 1 \
                   -type f \
@@ -585,73 +662,337 @@ jobs:
                   | head -n 1
           )"
 
-          normalize_postman_id()
-          {
-              local VALUE="$1"
+          if [ -n "$EXISTING_COLLECTION_FILE" ]; then
+              COLLECTION_FILE="$EXISTING_COLLECTION_FILE"
+          else
+              COLLECTION_FILE="$POSTMAN_COLLECTION_FILE"
+          fi
 
-              if [[ "$VALUE" =~ ^[0-9]+-([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})$ ]]
-              then
-                  printf '%s' "${BASH_REMATCH[1]}"
-              else
-                  printf '%s' "$VALUE"
-              fi
-          }
+          if [ -n "$EXISTING_ENVIRONMENT_FILE" ]; then
+              ENVIRONMENT_FILE="$EXISTING_ENVIRONMENT_FILE"
+          else
+              ENVIRONMENT_FILE="$POSTMAN_ENVIRONMENT_FILE"
+          fi
 
-          COLLECTION_ID="$(
-              normalize_postman_id "$POSTMAN_COLLECTION_ID"
-          )"
+          echo "Collection file:  $COLLECTION_FILE"
+          echo "Environment file: $ENVIRONMENT_FILE"
 
-          ENVIRONMENT_ID="$(
-              normalize_postman_id "$POSTMAN_ENVIRONMENT_ID"
-          )"
 
-          if [ -n "$COLLECTION_FILE" ]; then
+          # ======================================================
+          # COLLECTION
+          # ======================================================
 
-              COLLECTION_PAYLOAD="$RUNNER_TEMP/collection.json"
+          if [ ! -f "$COLLECTION_FILE" ]; then
 
-              jq \
-                  '{collection: .}' \
-                  "$COLLECTION_FILE" \
-                  > "$COLLECTION_PAYLOAD"
+              echo "Collection file missing."
+              echo "Fetching existing Postman collection..."
 
-              STATUS="$(
+              COLLECTION_RESPONSE="$RUNNER_TEMP/postman-collection-get.json"
+
+              COLLECTION_STATUS="$(
                   curl \
                       --silent \
                       --show-error \
-                      --output /tmp/postman-collection-response.json \
+                      --connect-timeout 15 \
+                      --max-time 90 \
+                      --retry 3 \
+                      --retry-delay 2 \
+                      --output "$COLLECTION_RESPONSE" \
                       --write-out '%{http_code}' \
-                      --request PUT \
-                      "https://api.postman.com/collections/${COLLECTION_ID}" \
-                      --header "X-Api-Key: ${POSTMAN_API_KEY}" \
-                      --header "Content-Type: application/json" \
-                      --data-binary "@${COLLECTION_PAYLOAD}"
+                      --request GET \
+                      "${POSTMAN_API_BASE}/collections/${POSTMAN_COLLECTION_ID}" \
+                      --header "X-Api-Key: ${POSTMAN_API_KEY}"
               )"
 
-              if [ "$STATUS" = "200" ]; then
-                  echo "Postman collection sync PASS"
+              CURL_EXIT=$?
+
+              echo "Collection GET status: ${COLLECTION_STATUS:-N/A}"
+
+              if \
+                  [ "$CURL_EXIT" -eq 0 ] && \
+                  [ "$COLLECTION_STATUS" = "200" ] && \
+                  jq -e '.collection | type == "object"' \
+                      "$COLLECTION_RESPONSE" \
+                      >/dev/null 2>&1
+              then
+
+                  jq '.collection' \
+                      "$COLLECTION_RESPONSE" \
+                      > "$COLLECTION_FILE"
+
+                  CHANGED_REPO_FILES=1
+
+                  echo "Collection added to repository workspace:"
+                  echo "$COLLECTION_FILE"
+
               else
-                  echo "::warning::Postman collection sync returned HTTP ${STATUS:-N/A}"
+
+                  echo "::warning::Unable to fetch Postman collection."
+
+                  if [ -s "$COLLECTION_RESPONSE" ]; then
+                      cat "$COLLECTION_RESPONSE"
+                  fi
+
               fi
 
           else
 
-              echo "::warning::Postman collection file not found under docs/postman."
+              echo "Collection file exists."
+              echo "Updating existing Postman collection..."
+
+              if jq -e '
+                  type == "object"
+                  and (.info | type == "object")
+                  and (.item | type == "array")
+              ' "$COLLECTION_FILE" >/dev/null 2>&1
+              then
+
+                  COLLECTION_PAYLOAD="$RUNNER_TEMP/postman-collection-put.json"
+                  COLLECTION_RESPONSE="$RUNNER_TEMP/postman-collection-put-response.json"
+
+                  jq \
+                      '{collection: .}' \
+                      "$COLLECTION_FILE" \
+                      > "$COLLECTION_PAYLOAD"
+
+                  COLLECTION_STATUS="$(
+                      curl \
+                          --silent \
+                          --show-error \
+                          --connect-timeout 15 \
+                          --max-time 90 \
+                          --retry 3 \
+                          --retry-delay 2 \
+                          --output "$COLLECTION_RESPONSE" \
+                          --write-out '%{http_code}' \
+                          --request PUT \
+                          "${POSTMAN_API_BASE}/collections/${POSTMAN_COLLECTION_ID}" \
+                          --header "X-Api-Key: ${POSTMAN_API_KEY}" \
+                          --header "Content-Type: application/json" \
+                          --data-binary "@${COLLECTION_PAYLOAD}"
+                  )"
+
+                  CURL_EXIT=$?
+
+                  echo "Collection PUT status: ${COLLECTION_STATUS:-N/A}"
+
+                  if \
+                      [ "$CURL_EXIT" -eq 0 ] && \
+                      [ "$COLLECTION_STATUS" = "200" ]
+                  then
+                      echo "Postman collection update PASS"
+                  else
+                      echo "::warning::Postman collection update failed."
+
+                      if [ -s "$COLLECTION_RESPONSE" ]; then
+                          cat "$COLLECTION_RESPONSE"
+                      fi
+                  fi
+
+              else
+
+                  echo "::warning::Repository collection JSON is invalid."
+
+              fi
 
           fi
 
-          if [ -n "$ENVIRONMENT_FILE" ]; then
 
-              ENVIRONMENT_PAYLOAD="$RUNNER_TEMP/environment.json"
+          # ======================================================
+          # ENVIRONMENT
+          #
+          # Always read remote environment first so existing secret
+          # values are preserved.
+          # ======================================================
+
+          REMOTE_ENV_RESPONSE="$RUNNER_TEMP/postman-environment-get.json"
+
+          REMOTE_ENV_STATUS="$(
+              curl \
+                  --silent \
+                  --show-error \
+                  --connect-timeout 15 \
+                  --max-time 90 \
+                  --retry 3 \
+                  --retry-delay 2 \
+                  --output "$REMOTE_ENV_RESPONSE" \
+                  --write-out '%{http_code}' \
+                  --request GET \
+                  "${POSTMAN_API_BASE}/environments/${POSTMAN_ENVIRONMENT_ID}" \
+                  --header "X-Api-Key: ${POSTMAN_API_KEY}"
+          )"
+
+          CURL_EXIT=$?
+
+          echo "Environment GET status: ${REMOTE_ENV_STATUS:-N/A}"
+
+          if \
+              [ "$CURL_EXIT" -eq 0 ] && \
+              [ "$REMOTE_ENV_STATUS" = "200" ] && \
+              jq -e '.environment | type == "object"' \
+                  "$REMOTE_ENV_RESPONSE" \
+                  >/dev/null 2>&1
+          then
+
+              # --------------------------------------------------
+              # Create safe repo environment template if missing.
+              #
+              # All remote values are blanked before committing,
+              # except base_url.
+              # --------------------------------------------------
+
+              if [ ! -f "$ENVIRONMENT_FILE" ]; then
+
+                  echo "Environment file missing."
+                  echo "Creating safe repository environment template..."
+
+                  jq \
+                      --arg baseUrl "$APP_URL" \
+                      '
+                      .environment
+                      |
+                      {
+                          name: (.name // "Anevix"),
+                          values: (
+                              (.values // [])
+                              | map({
+                                  key: .key,
+                                  value: (
+                                      if .key == "base_url"
+                                      then $baseUrl
+                                      else ""
+                                      end
+                                  ),
+                                  enabled: (.enabled // true),
+                                  type: (.type // "default")
+                              })
+                          )
+                      }
+                      |
+                      .values = (
+                          if any(
+                              .values[];
+                              .key == "base_url"
+                          )
+                          then
+                              .values
+                          else
+                              .values + [
+                                  {
+                                      key: "base_url",
+                                      value: $baseUrl,
+                                      enabled: true,
+                                      type: "default"
+                                  }
+                              ]
+                          end
+                      )
+                      ' \
+                      "$REMOTE_ENV_RESPONSE" \
+                      > "$ENVIRONMENT_FILE"
+
+                  CHANGED_REPO_FILES=1
+
+                  echo "Safe environment template added:"
+                  echo "$ENVIRONMENT_FILE"
+
+              else
+
+                  # Keep repository base_url correct without touching
+                  # other local template values.
+
+                  ENV_TMP="$RUNNER_TEMP/postman-local-env-updated.json"
+
+                  if jq -e '
+                      type == "object"
+                      and (.name | type == "string")
+                      and (.values | type == "array")
+                  ' "$ENVIRONMENT_FILE" >/dev/null 2>&1
+                  then
+
+                      jq \
+                          --arg baseUrl "$APP_URL" \
+                          '
+                          .values = (
+                              if any(
+                                  .values[];
+                                  .key == "base_url"
+                              )
+                              then
+                                  .values
+                                  | map(
+                                      if .key == "base_url"
+                                      then
+                                          .value = $baseUrl
+                                          | .enabled = true
+                                      else
+                                          .
+                                      end
+                                  )
+                              else
+                                  .values + [
+                                      {
+                                          key: "base_url",
+                                          value: $baseUrl,
+                                          enabled: true,
+                                          type: "default"
+                                      }
+                                  ]
+                              end
+                          )
+                          ' \
+                          "$ENVIRONMENT_FILE" \
+                          > "$ENV_TMP"
+
+                      if ! cmp -s \
+                          "$ENVIRONMENT_FILE" \
+                          "$ENV_TMP"
+                      then
+
+                          mv \
+                              "$ENV_TMP" \
+                              "$ENVIRONMENT_FILE"
+
+                          CHANGED_REPO_FILES=1
+
+                          echo "Repository environment base_url updated."
+
+                      else
+
+                          rm -f "$ENV_TMP"
+
+                      fi
+
+                  else
+
+                      echo "::warning::Repository environment JSON is invalid."
+
+                  fi
+
+              fi
+
+
+              # --------------------------------------------------
+              # Update ONLY base_url in remote environment.
+              #
+              # All existing remote values/secrets remain unchanged.
+              # --------------------------------------------------
+
+              REMOTE_ENV_PAYLOAD="$RUNNER_TEMP/postman-environment-put.json"
+              REMOTE_ENV_PUT_RESPONSE="$RUNNER_TEMP/postman-environment-put-response.json"
 
               jq \
                   --arg baseUrl "$APP_URL" \
                   '
-                  .values = (.values // [])
+                  .environment
                   |
                   .values = (
-                      if any(.values[]; .key == "base_url")
+                      if any(
+                          (.values // [])[];
+                          .key == "base_url"
+                      )
                       then
-                          .values
+                          (.values // [])
                           | map(
                               if .key == "base_url"
                               then
@@ -662,11 +1003,12 @@ jobs:
                               end
                           )
                       else
-                          .values + [
+                          (.values // []) + [
                               {
                                   key: "base_url",
                                   value: $baseUrl,
-                                  enabled: true
+                                  enabled: true,
+                                  type: "default"
                               }
                           ]
                       end
@@ -679,32 +1021,111 @@ jobs:
                       }
                   }
                   ' \
-                  "$ENVIRONMENT_FILE" \
-                  > "$ENVIRONMENT_PAYLOAD"
+                  "$REMOTE_ENV_RESPONSE" \
+                  > "$REMOTE_ENV_PAYLOAD"
 
-              STATUS="$(
+              REMOTE_ENV_PUT_STATUS="$(
                   curl \
                       --silent \
                       --show-error \
-                      --output /tmp/postman-environment-response.json \
+                      --connect-timeout 15 \
+                      --max-time 90 \
+                      --retry 3 \
+                      --retry-delay 2 \
+                      --output "$REMOTE_ENV_PUT_RESPONSE" \
                       --write-out '%{http_code}' \
                       --request PUT \
-                      "https://api.postman.com/environments/${ENVIRONMENT_ID}" \
+                      "${POSTMAN_API_BASE}/environments/${POSTMAN_ENVIRONMENT_ID}" \
                       --header "X-Api-Key: ${POSTMAN_API_KEY}" \
                       --header "Content-Type: application/json" \
-                      --data-binary "@${ENVIRONMENT_PAYLOAD}"
+                      --data-binary "@${REMOTE_ENV_PAYLOAD}"
               )"
 
-              if [ "$STATUS" = "200" ]; then
-                  echo "Postman environment sync PASS"
+              CURL_EXIT=$?
+
+              echo "Environment PUT status: ${REMOTE_ENV_PUT_STATUS:-N/A}"
+
+              if \
+                  [ "$CURL_EXIT" -eq 0 ] && \
+                  [ "$REMOTE_ENV_PUT_STATUS" = "200" ]
+              then
+                  echo "Postman environment base_url update PASS"
               else
-                  echo "::warning::Postman environment sync returned HTTP ${STATUS:-N/A}"
+                  echo "::warning::Postman environment update failed."
+
+                  if [ -s "$REMOTE_ENV_PUT_RESPONSE" ]; then
+                      cat "$REMOTE_ENV_PUT_RESPONSE"
+                  fi
               fi
 
           else
 
-              echo "::warning::Postman environment file not found under docs/postman."
+              echo "::warning::Unable to fetch Postman environment."
+
+              if [ -s "$REMOTE_ENV_RESPONSE" ]; then
+                  cat "$REMOTE_ENV_RESPONSE"
+              fi
 
           fi
+
+
+          # ======================================================
+          # COMMIT NEW / UPDATED POSTMAN FILES TO REPO
+          # ======================================================
+
+          if [ "$CHANGED_REPO_FILES" -eq 1 ]; then
+
+              echo
+              echo "Repository Postman files changed."
+
+              git config \
+                  user.name \
+                  "github-actions[bot]"
+
+              git config \
+                  user.email \
+                  "41898282+github-actions[bot]@users.noreply.github.com"
+
+              git add docs/postman
+
+              if git diff \
+                  --cached \
+                  --quiet
+              then
+
+                  echo "Nothing to commit."
+
+              else
+
+                  git commit \
+                      -m "chore(postman): sync Anevix Postman files"
+
+                  if git push \
+                      origin \
+                      "HEAD:${GITHUB_REF_NAME}"
+                  then
+
+                      echo "Repository Postman files committed and pushed."
+
+                  else
+
+                      echo "::warning::Could not push Postman files back to branch."
+                      echo "::warning::Check branch protection / workflow write permissions."
+
+                  fi
+
+              fi
+
+          else
+
+              echo "Repository Postman files already up to date."
+
+          fi
+
+
+          echo
+          echo "========================================"
+          echo "POSTMAN SYNC COMPLETE"
+          echo "========================================"
 
           exit 0
