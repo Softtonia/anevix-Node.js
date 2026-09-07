@@ -8,30 +8,13 @@
       "name": "Admin",
       "item": [
         {
-          "name": "Register Admin",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{BASE_URL}}/admin/register",
-              "host": ["{{BASE_URL}}"],
-              "path": ["admin", "register"]
-            }
-          }
-        },
-        {
           "name": "Login Admin",
           "request": {
             "method": "POST",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"email\": \"admin@yopmail.com\",\n  \"password\": \"admin123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -48,7 +31,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@example.com\"\n}",
+              "raw": "{\n  \"email\": \"admin@yopmail.com\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -82,7 +65,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{TOKEN}}"
+                "value": "Bearer {{ADMIN_TOKEN}}"
               }
             ],
             "url": {
@@ -104,12 +87,12 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{TOKEN}}"
+                "value": "Bearer {{ADMIN_TOKEN}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -126,12 +109,12 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{TOKEN}}"
+                "value": "Bearer {{ADMIN_TOKEN}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Name\",\n  \"email\": \"updated@example.com\",\n  \"mobile\": \"9876543210\",\n  \"status\": \"inactive\"\n}",
+              "raw": "{\n  \"firstName\": \"Updated\",\n  \"lastName\": \"Name\",\n  \"email\": \"updated@example.com\",\n  \"phoneNumber\": \"9876543210\",\n  \"status\": \"inactive\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -148,7 +131,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{TOKEN}}"
+                "value": "Bearer {{ADMIN_TOKEN}}"
               }
             ],
             "url": {
@@ -165,7 +148,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"mobile\": \"9876543210\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john@example.com\",\n  \"phoneNumber\": \"9876543210\",\n  \"password\": \"password123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -250,7 +233,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{USER_TOKEN}}"
+                "value": "Bearer {{CUSTOMER_TOKEN}}"
               }
             ],
             "url": {
@@ -267,7 +250,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{USER_TOKEN}}"
+                "value": "Bearer {{CUSTOMER_TOKEN}}"
               }
             ],
             "url": {

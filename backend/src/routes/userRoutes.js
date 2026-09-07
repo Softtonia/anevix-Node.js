@@ -1,6 +1,6 @@
 const express = require("express");
-const userAuthMiddleware = require("../middleware/userAuthMiddleware");
-const authMiddleware = require("../middleware/authMiddleware");
+const b2bCustomerAuth = require("../middleware/b2bCustomerAuth");
+const adminAuth = require("../middleware/adminAuth");
 
 const router = express.Router();
 
@@ -19,9 +19,9 @@ const {
   resetPassword,
 } = require("../controllers/userController");
 
-router.post("/add", authMiddleware, addUser);
-router.delete("/delete/:id", authMiddleware, deleteUser);
-router.put("/edit/:id", authMiddleware, editUser);
+router.post("/add", adminAuth, addUser);
+router.delete("/delete/:id", adminAuth, deleteUser);
+router.put("/edit/:id", adminAuth, editUser);
 
 // B2C Customer Signup
 router.post("/signup", signupUser);
@@ -39,9 +39,9 @@ router.post("/verify-mobile", verifyMobileOTP);
 // Login User
 router.post("/login", loginUser);
 
-router.get("/profile", userAuthMiddleware, getUserProfile);
+router.get("/profile", b2bCustomerAuth, getUserProfile);
 
 // Logout User
-router.post("/logout", userAuthMiddleware, logoutUser);
+router.post("/logout", b2bCustomerAuth, logoutUser);
 
 module.exports = router;

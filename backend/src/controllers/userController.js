@@ -1,4 +1,12 @@
 const User = require("../models/User");
+const Role = require("../models/Role");
+const RoleHasUser = require("../models/RoleHasUser");
+const Address = require("../models/Address");
+const Order = require("../models/Order");
+const Wishlist = require("../models/Wishlist");
+const SavedPaymentMethod = require("../models/SavedPaymentMethod");
+const Review = require("../models/Review");
+const Notification = require("../models/Notification");
 const bcrypt = require("bcryptjs");
 const generateOTP = require("../utils/otp");
 const crypto = require("crypto");
@@ -7,7 +15,7 @@ const jwt = require("jsonwebtoken");
 
 const addUser = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, firstName, lastName } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -19,7 +27,8 @@ const addUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
-      name,
+      firstName,
+      lastName,
       email,
       password: hashedPassword,
     });
@@ -30,7 +39,8 @@ const addUser = async (req, res) => {
       message: "User added successfully",
       user: {
         id: newUser._id,
-        name: newUser.name,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
         email: newUser.email,
       },
     });
@@ -44,18 +54,26 @@ const addUser = async (req, res) => {
 
 const signupUser = async (req, res) => {
   try {
-    const { name, email, mobile, password } = req.body;
+    const { firstName, lastName, email, phoneNumber, password, role } = req.body;
+    
+    let requestedRoleSlug = role || req.query.ref || req.query.role || 'b2b-customer';
+    
+    if (requestedRoleSlug.includes('seller') || requestedRoleSlug.includes('supplier') || requestedRoleSlug === 'b2c-seller') {
+        requestedRoleSlug = 'b2c-seller';
+    } else if (requestedRoleSlug.includes('customer') || requestedRoleSlug === 'b2b-customer') {
+        requestedRoleSlug = 'b2b-customer';
+    }
 
-    if (!name || !password || (!email && !mobile)) {
+    if (!firstName || !lastName || !password || (!email && !phoneNumber)) {
       return res.status(400).json({
-        message: "Name, password and email or mobile are required",
+        message: "First name, last name, password and email or phone number are required",
       });
     }
 
     const existingUser = await User.findOne({
       $or: [
         ...(email ? [{ email: email.toLowerCase().trim() }] : []),
-        ...(mobile ? [{ mobile: mobile.trim() }] : []),
+        ...(phoneNumber ? [{ phoneNumber: phoneNumber.trim() }] : []),
       ],
     });
 
@@ -68,9 +86,10 @@ const signupUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
-      name: name.trim(),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       email: email ? email.toLowerCase().trim() : undefined,
-      mobile: mobile ? mobile.trim() : undefined,
+      phoneNumber: phoneNumber ? phoneNumber.trim() : undefined,
       password: hashedPassword,
     });
 
@@ -92,7 +111,7 @@ const signupUser = async (req, res) => {
       verificationTypes.push("email");
     }
     
-    if (mobile) {
+    if (phoneNumber) {
       const mobileOtpHash = crypto.createHash("sha256").update(mobileOtp).digest("hex");
       newUser.mobileOtpHash = mobileOtpHash;
       newUser.mobileOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -103,16 +122,53 @@ const signupUser = async (req, res) => {
 
     await newUser.save();
 
+    // Assign role
+    try {
+      let assignedRole = await Role.findOne({ slug: requestedRoleSlug });
+      
+      // If the requested role doesn't exist yet, auto-create it safely
+      if (!assignedRole) {
+        const lastRole = await Role.findOne().sort({ id: -1 });
+        const newRoleId = lastRole ? lastRole.id + 1 : 2;
+        
+        // Capitalize the first letter for the name
+        const roleName = requestedRoleSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        
+        assignedRole = await Role.create({
+          id: newRoleId,
+          name: roleName,
+          slug: requestedRoleSlug,
+          guard: requestedRoleSlug === 'b2b-customer' ? 'app' : 'web', // typically customers use app, sellers use web
+          is_default: requestedRoleSlug === 'b2b-customer'
+        });
+      }
+
+      if (assignedRole) {
+        const lastPivot = await RoleHasUser.findOne().sort({ id: -1 });
+        const nextId = lastPivot ? lastPivot.id + 1 : 1;
+
+        await RoleHasUser.create({
+          id: nextId,
+          role_id: assignedRole.id,
+          user_id: newUser._id
+        });
+      }
+    } catch (roleError) {
+      console.error("Error assigning role during signup:", roleError);
+    }
+
+
     return res.status(201).json({
       success: true,
       message: "Signup successful",
       verificationTypes,
-      dummyMobileOtp: mobile ? mobileOtp : undefined,
+      dummyMobileOtp: phoneNumber ? mobileOtp : undefined,
       user: {
         id: newUser._id,
-        name: newUser.name,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
         email: newUser.email,
-        mobile: newUser.mobile,
+        phoneNumber: newUser.phoneNumber,
       },
     });
   } catch (error) {
@@ -133,6 +189,12 @@ const verifyEmailOTP = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         message: "User not found",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        message: "Email is already verified",
       });
     }
 
@@ -243,6 +305,12 @@ const verifyMobileOTP = async (req, res) => {
       });
     }
 
+    if (user.isMobileVerified) {
+      return res.status(400).json({
+        message: "Mobile number is already verified",
+      });
+    }
+
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     if (
@@ -315,8 +383,7 @@ const loginUser = async (req, res) => {
       expiresIn: "1d",
     });
 
-    user.lastLoginAt = new Date();
-    await user.save();
+    await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
 
     return res.status(200).json({
       success: true,
@@ -324,9 +391,10 @@ const loginUser = async (req, res) => {
       token,
       user: {
         id: user._id,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
-        mobile: user.mobile,
+        phoneNumber: user.phoneNumber,
       },
     });
   } catch (error) {
@@ -340,7 +408,9 @@ const loginUser = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select(
+      "-password -emailOtpHash -emailOtpExpiresAt -mobileOtpHash -mobileOtpExpiresAt -passwordResetTokenHash -passwordResetExpiresAt -__v"
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -348,9 +418,39 @@ const getUserProfile = async (req, res) => {
       });
     }
 
+    // Fetch related profile data concurrently
+    const [
+      addresses,
+      orderHistory,
+      wishlist,
+      savedPaymentMethods,
+      reviews,
+      notifications
+    ] = await Promise.all([
+      Address.find({ user: user._id }),
+      Order.find({ user: user._id }).sort({ createdAt: -1 }),
+      Wishlist.find({ user: user._id }).populate('product'), // populating product if schema exists
+      SavedPaymentMethod.find({ user: user._id }),
+      Review.find({ user: user._id }),
+      Notification.find({ user: user._id }).sort({ createdAt: -1 })
+    ]);
+
+    // Separate default address from the rest
+    const defaultAddress = addresses.find(addr => addr.isDefault) || null;
+    const otherAddresses = addresses.filter(addr => !addr.isDefault);
+
     return res.status(200).json({
       success: true,
-      user,
+      profile: {
+        ...user._doc, // user document properties
+        addresses: otherAddresses,
+        defaultAddress,
+        orderHistory,
+        wishlist,
+        savedPaymentMethods,
+        reviews,
+        notifications
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -405,7 +505,7 @@ const deleteUser = async (req, res) => {
 const editUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, mobile, password, status } = req.body;
+    const { firstName, lastName, email, phoneNumber, password, status } = req.body;
 
     const user = await User.findById(id);
 
@@ -416,9 +516,10 @@ const editUser = async (req, res) => {
       });
     }
 
-    if (name) user.name = name;
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
     if (email) user.email = email.toLowerCase().trim();
-    if (mobile) user.mobile = mobile.trim();
+    if (phoneNumber) user.phoneNumber = phoneNumber.trim();
     if (status) user.status = status;
 
     if (password) {
@@ -433,9 +534,10 @@ const editUser = async (req, res) => {
       message: "User updated successfully",
       user: {
         id: user._id,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
-        mobile: user.mobile,
+        phoneNumber: user.phoneNumber,
         status: user.status,
       },
     });

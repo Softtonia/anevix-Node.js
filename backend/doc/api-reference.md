@@ -1,78 +1,188 @@
 # Anevix API Reference
 
-This document provides a reference for the Anevix Backend APIs.
-
-## Base URL
-
-**Local Environment:** `http://localhost:5000/api`
-
-## Authentication
-
-Some endpoints require authentication via a Bearer token.
-Pass the token in the `Authorization` header:
-
-```http
-Authorization: Bearer <your_jwt_token>
-```
+Below is a complete list of all the API endpoints currently available in the application, along with their expected payloads and authentication requirements.
 
 ---
 
-## Admin Endpoints
+## 🛡️ Admin Endpoints
+Base URL: `/admin`
 
-### 1. Register Admin
-**URL:** `/admin/register`
-**Method:** `POST`
-**Description:** Registers a new admin user.
-**Request Body:**
-```json
-{
-  "email": "admin@example.com",
-  "password": "password123"
-}
-```
+### 1. Admin Login
+- **Method:** `POST`
+- **Endpoint:** `/login`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "email": "admin@yopmail.com",
+    "password": "admin123"
+  }
+  ```
 
-### 2. Login Admin
-**URL:** `/admin/login`
-**Method:** `POST`
-**Description:** Authenticates an admin and returns a token.
-**Request Body:**
-```json
-{
-  "email": "admin@example.com",
-  "password": "password123"
-}
-```
+### 2. Forgot Password
+- **Method:** `POST`
+- **Endpoint:** `/forgot-password`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "email": "admin@yopmail.com"
+  }
+  ```
 
-### 3. Forgot Password
-**URL:** `/admin/forgot-password`
-**Method:** `POST`
-**Description:** Initiates the password reset process for an admin.
-**Request Body:**
-```json
-{
-  "email": "admin@example.com"
-}
-```
+### 3. Reset Password
+- **Method:** `POST`
+- **Endpoint:** `/reset-password/:token`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "password": "newpassword123"
+  }
+  ```
 
-### 4. Admin Profile
-**URL:** `/admin/profile`
-**Method:** `GET`
-**Description:** Retrieves the authenticated admin's profile.
-**Headers:**
-- `Authorization: Bearer <token>`
+### 4. Get Admin Profile
+- **Method:** `GET`
+- **Endpoint:** `/profile`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+- **Payload:** None
 
 ---
 
-## User Endpoints
+## 👥 User Management (Admin Only)
+Base URL: `/users`
+*All endpoints below require Admin Authentication (`Bearer <ADMIN_TOKEN>`)*
 
 ### 1. Add User
-**URL:** `/users/add`
-**Method:** `POST`
-**Description:** Adds a new user to the system.
-**Request Body:**
-```json
-{
-  "name": "Test User",
-  "email": "user@example.com"
-}
-```
+- **Method:** `POST`
+- **Endpoint:** `/add`
+- **Payload:**
+  ```json
+  {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "user@example.com",
+    "password": "password123"
+  }
+  ```
+
+### 2. Edit User
+- **Method:** `PUT`
+- **Endpoint:** `/edit/:id`
+- **Payload (all fields optional):**
+  ```json
+  {
+    "firstName": "UpdatedFirstName",
+    "lastName": "UpdatedLastName",
+    "email": "updated@example.com",
+    "phoneNumber": "9876543210",
+    "status": "inactive",
+    "password": "newpassword123"
+  }
+  ```
+
+### 3. Delete User
+- **Method:** `DELETE`
+- **Endpoint:** `/delete/:id`
+- **Payload:** None
+
+---
+
+## 🛍️ Customer Endpoints
+Base URL: `/users`
+
+### 1. Customer Signup
+- **Method:** `POST`
+- **Endpoint:** `/signup`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "email": "jane@example.com",
+    "phoneNumber": "9876543210",
+    "password": "password123"
+  }
+  ```
+
+### 2. Verify Email OTP
+- **Method:** `POST`
+- **Endpoint:** `/verify-email`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "userId": "64abcdef1234567890",
+    "otp": "123456"
+  }
+  ```
+
+### 3. Verify Mobile OTP
+- **Method:** `POST`
+- **Endpoint:** `/verify-mobile`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "userId": "64abcdef1234567890",
+    "otp": "123456"
+  }
+  ```
+
+### 4. Resend Email OTP
+- **Method:** `POST`
+- **Endpoint:** `/resend-email-otp`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "userId": "64abcdef1234567890"
+  }
+  ```
+
+### 5. Customer Login
+- **Method:** `POST`
+- **Endpoint:** `/login`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "email": "jane@example.com",
+    "password": "password123"
+  }
+  ```
+
+### 6. Customer Forgot Password
+- **Method:** `POST`
+- **Endpoint:** `/forgot-password`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "email": "jane@example.com"
+  }
+  ```
+
+### 7. Customer Reset Password
+- **Method:** `POST`
+- **Endpoint:** `/reset-password/:token`
+- **Auth:** None
+- **Payload:**
+  ```json
+  {
+    "password": "newpassword123"
+  }
+  ```
+
+### 8. Get Customer Profile
+- **Method:** `GET`
+- **Endpoint:** `/profile`
+- **Auth:** `Bearer <CUSTOMER_TOKEN>`
+- **Payload:** None
+
+### 9. Logout
+- **Method:** `POST`
+- **Endpoint:** `/logout`
+- **Auth:** `Bearer <CUSTOMER_TOKEN>`
+- **Payload:** None

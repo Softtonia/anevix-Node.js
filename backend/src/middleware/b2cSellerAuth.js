@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-const userAuthMiddleware = (req, res, next) => {
+const b2cSellerAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -14,7 +14,7 @@ const userAuthMiddleware = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = decoded;
+    req.b2cSeller = decoded;
 
     next();
   } catch (error) {
@@ -24,4 +24,4 @@ const userAuthMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = userAuthMiddleware;
+module.exports = b2cSellerAuth;

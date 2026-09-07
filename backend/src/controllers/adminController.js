@@ -4,44 +4,23 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
-const registerAdmin = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) {
-      return res.status(400).json({ message: "Admin already exists" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const admin = await Admin.create({
-      name,
-      email,
-      password: hashedPassword,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Admin created successfully",
-      admin: {
-        id: admin._id,
-        name: admin.name,
-        email: admin.email,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Something went wrong",
-      error: error.message,
-    });
-  }
-};
 
 const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // Static login credentials of yopmail
+    if (email === "admin@yopmail.com" && password === "admin123") {
+      const token = jwt.sign({ id: "static_admin_id" }, process.env.JWT_SECRET, {
+        expiresIn: "1d",
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Login successful",
+        token
+      });
+    }
 
     const admin = await Admin.findOne({ email });
 
@@ -147,4 +126,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { registerAdmin, loginAdmin, forgotPassword, resetPassword };
+module.exports = { loginAdmin, forgotPassword, resetPassword };
