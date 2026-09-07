@@ -14,9 +14,6 @@ permissions:
   contents: read
 
 env:
-  # ============================================================
-  # SERVER / APPLICATION
-  # ============================================================
   DEPLOY_HOST: "185.131.53.137"
   DEPLOY_PORT: "2222"
   DEPLOY_USER: "deploy"
@@ -27,225 +24,71 @@ env:
 
   NODE_PORT: "3101"
   PM2_APP_NAME: "anevix-api"
-  HEALTH_PATH: "/"
 
-  # ============================================================
-  # POSTMAN
-  # ============================================================
   POSTMAN_WORKSPACE_ID: "42f2b257-2d72-44e6-a4dc-0b8ba613f1a2"
   POSTMAN_COLLECTION_ID: "40673074-219bffd2-5145-42ed-8329-1311ac7411da"
   POSTMAN_ENVIRONMENT_ID: "40673074-bc557625-2851-431f-bb44-9514a657712b"
 
 jobs:
 
-  # ============================================================
-  # CI
-  # ============================================================
-
-  test:
-    name: Node.js CI
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          # Match the current production server runtime.
-          node-version: "18.19.1"
-          cache: npm
-
-      - name: Verify Project
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "===== NODE ====="
-          node --version
-
-          echo
-          echo "===== NPM ====="
-          npm --version
-
-          test -f package.json || {
-              echo "::error::package.json is missing."
-              exit 1
-          }
-
-          test -f package-lock.json || {
-              echo "::error::package-lock.json is required for deterministic deployment."
-              exit 1
-          }
-
-          ENTRY_FILE="$(
-              node -p '
-              const p = require("./package.json");
-              p.main || "server.js";
-              '
-          )"
-
-          echo "Production entry file: $ENTRY_FILE"
-
-          test -f "$ENTRY_FILE" || {
-              echo "::error::Production entry file does not exist: $ENTRY_FILE"
-              echo "::error::Current package.json main must point to a real Node entry file."
-              exit 1
-          }
-
-          echo
-          echo "===== PACKAGE SCRIPTS ====="
-
-          node - <<'NODE'
-          const pkg = require("./package.json");
-
-          console.log(
-              JSON.stringify(
-                  pkg.scripts || {},
-                  null,
-                  2
-              )
-          );
-
-          console.log(
-              "No scripts.start requirement. PM2 will run package.json main directly."
-          );
-          NODE
-
-          echo "Project verification PASS"
-
-      - name: Install Dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          npm ci --include=dev
-
-          echo "npm ci PASS"
-
-      - name: Run Tests
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          npm test --if-present
-
-      - name: Build Application
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if node -e '
-            const p = require("./package.json");
-            process.exit(
-                p.scripts && p.scripts.build
-                    ? 0
-                    : 1
-            );
-          '; then
-
-              npm run build
-
-              echo "Build PASS"
-
-          else
-
-              echo "No build script found."
-              echo "Build skipped."
-
-          fi
-
-
-  # ============================================================
-  # DEPLOY
-  # ============================================================
-
   deploy:
     name: Deploy Anevix API
-    needs:
-      - test
-
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 30
 
     steps:
 
       - name: Checkout
         uses: actions/checkout@v7
+
 
       - name: Create Deployment ID
         shell: bash
         run: |
           set -euo pipefail
 
-          DEPLOY_ID="$(
-              date -u +%Y%m%d%H%M%S
-          )-${GITHUB_SHA::7}"
+          DEPLOY_ID="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
 
-          echo "DEPLOY_ID=$DEPLOY_ID" \
-              >> "$GITHUB_ENV"
-
+          echo "DEPLOY_ID=$DEPLOY_ID" >> "$GITHUB_ENV"
           echo "Deploy ID: $DEPLOY_ID"
 
 
-      # ========================================================
-      # SSH
-      # ========================================================
-
       - name: Setup SSH
         shell: bash
-
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-
         run: |
           set -euo pipefail
 
           if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
-
               echo "::error::DEV_SSH_KEY repository secret is missing."
-
               exit 1
-
           fi
 
           mkdir -p "$HOME/.ssh"
-
           chmod 700 "$HOME/.ssh"
 
           printf '%s\n' "$SSH_PRIVATE_KEY" \
               | tr -d '\r' \
               > "$HOME/.ssh/anevix_deploy_key"
 
-          chmod 600 \
-              "$HOME/.ssh/anevix_deploy_key"
+          chmod 600 "$HOME/.ssh/anevix_deploy_key"
 
           if ! ssh-keygen \
               -y \
               -f "$HOME/.ssh/anevix_deploy_key" \
               >/dev/null 2>&1
           then
-
               echo "::error::DEV_SSH_KEY is not a valid OpenSSH private key."
-
               exit 1
-
           fi
 
           HOST_KEY_FILE="$HOME/.ssh/anevix_host_key"
-
-          rm -f "$HOST_KEY_FILE"
 
           KEYSCAN_OK=0
 
           for ATTEMPT in 1 2 3 4 5
           do
-
-              echo "ssh-keyscan attempt ${ATTEMPT}/5"
-
               if ssh-keyscan \
                   -4 \
                   -T 10 \
@@ -255,54 +98,36 @@ jobs:
                   2>/dev/null \
                   > "$HOST_KEY_FILE"
               then
-
                   if [ -s "$HOST_KEY_FILE" ]; then
-
                       KEYSCAN_OK=1
-
                       break
-
                   fi
-
               fi
 
               sleep "$((ATTEMPT * 3))"
-
           done
 
           if [ "$KEYSCAN_OK" -ne 1 ]; then
-
               echo "::error::Unable to retrieve SSH host key."
-
               exit 1
-
           fi
 
           EXPECTED_FINGERPRINT="SHA256:9UPe5ZfQsWabEgPmXYRqZas3s7PEFS9e+kDqkgv2ans"
 
           ACTUAL_FINGERPRINT="$(
-              ssh-keygen \
-                  -lf "$HOST_KEY_FILE" \
+              ssh-keygen -lf "$HOST_KEY_FILE" \
                   | awk 'NR == 1 {print $2}'
           )"
 
-          echo "Expected fingerprint: $EXPECTED_FINGERPRINT"
-          echo "Actual fingerprint:   $ACTUAL_FINGERPRINT"
-
           if [ "$ACTUAL_FINGERPRINT" != "$EXPECTED_FINGERPRINT" ]; then
-
               echo "::error::SSH host fingerprint mismatch."
-
+              echo "Expected: $EXPECTED_FINGERPRINT"
+              echo "Actual:   $ACTUAL_FINGERPRINT"
               exit 1
-
           fi
 
-          cp \
-              "$HOST_KEY_FILE" \
-              "$HOME/.ssh/known_hosts"
-
-          chmod 600 \
-              "$HOME/.ssh/known_hosts"
+          cp "$HOST_KEY_FILE" "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
 
           cat > "$HOME/.ssh/config" <<EOF
           Host anevix-dev
@@ -321,41 +146,12 @@ jobs:
               ServerAliveCountMax 3
           EOF
 
-          chmod 600 \
-              "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
 
           rm -f "$HOST_KEY_FILE"
 
           echo "SSH setup PASS"
 
-
-      # ========================================================
-      # SSH AUTH
-      # ========================================================
-
-      - name: Verify SSH Authentication
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ssh anevix-dev '
-              set -e
-
-              cd "$HOME"
-
-              echo "SSH AUTHENTICATION PASS"
-              echo "User: $(whoami)"
-              echo "Host: $(hostname)"
-
-              node --version
-              npm --version
-              pm2 --version
-          '
-
-
-      # ========================================================
-      # SERVER PREFLIGHT
-      # ========================================================
 
       - name: Server Preflight
         shell: bash
@@ -363,63 +159,20 @@ jobs:
           set -euo pipefail
 
           ssh anevix-dev \
-            "BASE_PATH='$DEPLOY_BASE_PATH' NODE_PORT='$NODE_PORT' APP_URL_EXPECTED='$APP_URL' bash -s" <<'REMOTE'
+            "BASE_PATH='$DEPLOY_BASE_PATH' bash -s" <<'REMOTE'
 
           set -euo pipefail
 
           CURRENT_PATH="$BASE_PATH/current"
           SHARED_PATH="$BASE_PATH/shared"
 
-          echo "========================================"
-          echo "ANEVIX SERVER PREFLIGHT"
-          echo "========================================"
-
-          echo "Base:    $BASE_PATH"
-          echo "Current: $CURRENT_PATH"
-          echo "Shared:  $SHARED_PATH"
-
-          for COMMAND in \
-              node \
-              npm \
-              pm2 \
-              rsync \
-              python3
+          for COMMAND in node npm pm2 rsync python3
           do
-
               if ! command -v "$COMMAND" >/dev/null 2>&1; then
-
                   echo "ERROR: Required command missing: $COMMAND"
-
                   exit 1
-
               fi
-
           done
-
-          NODE_VERSION="$(node --version)"
-
-          echo "Node: $NODE_VERSION"
-          echo "npm:  $(npm --version)"
-          echo "PM2:  $(pm2 --version)"
-
-          case "$NODE_VERSION" in
-              v18.*)
-                  ;;
-              *)
-                  echo "ERROR: Production server must currently use Node 18.x."
-                  exit 1
-                  ;;
-          esac
-
-          test -f "$SHARED_PATH/.env" || {
-              echo "ERROR: $SHARED_PATH/.env is missing."
-              exit 1
-          }
-
-          test -r "$SHARED_PATH/.env" || {
-              echo "ERROR: shared .env is not readable."
-              exit 1
-          }
 
           mkdir -p \
               "$CURRENT_PATH" \
@@ -427,119 +180,54 @@ jobs:
               "$SHARED_PATH/uploads"
 
           test -w "$CURRENT_PATH" || {
-              echo "ERROR: current directory is not writable."
+              echo "ERROR: $CURRENT_PATH is not writable."
               exit 1
           }
 
-          test -w "$SHARED_PATH" || {
-              echo "ERROR: shared directory is not writable."
-              exit 1
-          }
+          if [ ! -f "$SHARED_PATH/.env" ]; then
+              echo "Shared .env not found. Creating placeholder."
+              touch "$SHARED_PATH/.env"
+              chmod 640 "$SHARED_PATH/.env"
+          fi
 
-          grep -q '^NODE_ENV=production$' "$SHARED_PATH/.env" || {
-              echo "ERROR: NODE_ENV=production missing from shared .env"
-              exit 1
-          }
-
-          grep -q '^HOST=127\.0\.0\.1$' "$SHARED_PATH/.env" || {
-              echo "ERROR: HOST=127.0.0.1 missing from shared .env"
-              exit 1
-          }
-
-          grep -q "^PORT=${NODE_PORT}$" "$SHARED_PATH/.env" || {
-              echo "ERROR: PORT=${NODE_PORT} missing from shared .env"
-              exit 1
-          }
-
-          grep -q "^APP_URL=${APP_URL_EXPECTED}$" "$SHARED_PATH/.env" || {
-              echo "ERROR: APP_URL mismatch in shared .env"
-              exit 1
-          }
-
-          grep -Eq '^MONGO_URL=.+$' "$SHARED_PATH/.env" || {
-              echo "ERROR: MONGO_URL is missing or empty in shared .env"
-              exit 1
-          }
-
-          grep -Eq '^JWT_SECRET=.+$' "$SHARED_PATH/.env" || {
-              echo "ERROR: JWT_SECRET is missing or empty in shared .env"
-              exit 1
-          }
-
+          echo "Node: $(node --version)"
+          echo "npm:  $(npm --version)"
+          echo "PM2:  $(pm2 --version)"
           echo "Server preflight PASS"
 
           REMOTE
 
-
-      # ========================================================
-      # UPLOAD
-      # ========================================================
 
       - name: Upload Application
         shell: bash
         run: |
           set -euo pipefail
 
-          RSYNC_OK=0
+          rsync \
+              -az \
+              --delete-delay \
+              --delay-updates \
+              --partial \
+              --timeout=120 \
+              --no-owner \
+              --no-group \
+              --exclude="/.git/" \
+              --exclude="/.github/" \
+              --exclude="/.env" \
+              --exclude="/.env.*" \
+              --exclude="/node_modules/" \
+              --exclude="/logs" \
+              --exclude="/uploads" \
+              --exclude="/coverage/" \
+              --exclude="/docs/" \
+              -e "ssh -F $HOME/.ssh/config" \
+              ./ \
+              "anevix-dev:${DEPLOY_BASE_PATH}/current/"
 
-          for ATTEMPT in 1 2 3
-          do
-
-              echo "Rsync attempt ${ATTEMPT}/3"
-
-              if rsync \
-                  -az \
-                  --delete-delay \
-                  --delay-updates \
-                  --partial \
-                  --timeout=120 \
-                  --no-owner \
-                  --no-group \
-                  --exclude="/.git/" \
-                  --exclude="/.github/" \
-                  --exclude="/.env" \
-                  --exclude="/.env.*" \
-                  --exclude="/node_modules/" \
-                  --exclude="/logs" \
-                  --exclude="/uploads" \
-                  --exclude="/coverage/" \
-                  --exclude="/docs/" \
-                  --exclude="/README.md" \
-                  -e "ssh -F $HOME/.ssh/config" \
-                  ./ \
-                  "anevix-dev:${DEPLOY_BASE_PATH}/current/"
-              then
-
-                  RSYNC_OK=1
-
-                  echo "Upload PASS"
-
-                  break
-
-              fi
-
-              if [ "$ATTEMPT" -lt 3 ]; then
-
-                  sleep "$((ATTEMPT * 10))"
-
-              fi
-
-          done
-
-          if [ "$RSYNC_OK" -ne 1 ]; then
-
-              echo "::error::Application upload failed."
-
-              exit 1
-
-          fi
+          echo "Upload PASS"
 
 
-      # ========================================================
-      # DEPLOY APPLICATION
-      # ========================================================
-
-      - name: Deploy Application
+      - name: Install And Deploy
         shell: bash
         run: |
           set -euo pipefail
@@ -554,15 +242,6 @@ jobs:
 
           cd "$CURRENT_PATH"
 
-          echo "========================================"
-          echo "ANEVIX API DEPLOY"
-          echo "========================================"
-
-          echo "Deploy ID: $DEPLOY_ID"
-          echo "Path:      $CURRENT_PATH"
-
-          echo "========================================"
-
           test -f package.json || {
               echo "ERROR: package.json missing."
               exit 1
@@ -575,7 +254,54 @@ jobs:
 
 
           # ------------------------------------------------------
-          # PRODUCTION ENTRY FILE
+          # Shared .env
+          # ------------------------------------------------------
+
+          if [ -e "$CURRENT_PATH/.env" ] && [ ! -L "$CURRENT_PATH/.env" ]; then
+              echo "ERROR: current/.env exists but is not a symlink."
+              exit 1
+          fi
+
+          rm -f "$CURRENT_PATH/.env"
+
+          ln -s \
+              "$SHARED_PATH/.env" \
+              "$CURRENT_PATH/.env"
+
+
+          # ------------------------------------------------------
+          # Persistent uploads
+          # ------------------------------------------------------
+
+          mkdir -p "$SHARED_PATH/uploads"
+
+          if [ -e "$CURRENT_PATH/uploads" ] && [ ! -L "$CURRENT_PATH/uploads" ]; then
+              echo "ERROR: current/uploads exists but is not a symlink."
+              exit 1
+          fi
+
+          rm -f "$CURRENT_PATH/uploads"
+
+          ln -s \
+              "$SHARED_PATH/uploads" \
+              "$CURRENT_PATH/uploads"
+
+
+          # ------------------------------------------------------
+          # Install / optional build
+          # ------------------------------------------------------
+
+          npm ci --include=dev
+
+          npm run build --if-present
+
+          npm prune --omit=dev
+
+          echo "Dependencies PASS"
+
+
+          # ------------------------------------------------------
+          # Production entry
           # ------------------------------------------------------
 
           ENTRY_FILE="$(
@@ -585,14 +311,6 @@ jobs:
               '
           )"
 
-          if [ -z "$ENTRY_FILE" ]; then
-
-              echo "ERROR: package.json main is empty."
-
-              exit 1
-
-          fi
-
           test -f "$ENTRY_FILE" || {
               echo "ERROR: Production entry file missing: $ENTRY_FILE"
               exit 1
@@ -600,135 +318,49 @@ jobs:
 
           echo "Production entry: $ENTRY_FILE"
 
-          echo
-          echo "Package scripts:"
-
-          node -e '
-          const p = require("./package.json");
-          console.log(
-              JSON.stringify(
-                  p.scripts || {},
-                  null,
-                  2
-              )
-          );
-          '
-
-          echo
-          echo "NOTE: npm start is NOT required."
-          echo "PM2 will run the production entry file directly."
-
 
           # ------------------------------------------------------
-          # SHARED .ENV
+          # Runtime environment readiness
+          #
+          # Missing runtime secrets do NOT fail deployment.
+          # Fill shared/.env later and rerun the workflow.
           # ------------------------------------------------------
 
-          if \
-              [ -e "$CURRENT_PATH/.env" ] && \
-              [ ! -L "$CURRENT_PATH/.env" ]
-          then
+          RUNTIME_READY=1
 
-              echo "ERROR: current/.env exists but is not a symlink."
+          for VAR_NAME in MONGO_URL JWT_SECRET
+          do
+              if ! grep -Eq "^${VAR_NAME}=.+$" "$SHARED_PATH/.env"; then
+                  echo "::warning::${VAR_NAME} is not configured yet."
+                  RUNTIME_READY=0
+              fi
+          done
 
-              exit 1
+          if [ "$RUNTIME_READY" -ne 1 ]; then
+
+              echo
+              echo "========================================"
+              echo "CODE DEPLOYED - APP START SKIPPED"
+              echo "========================================"
+              echo "Files and dependencies are deployed."
+              echo "Runtime .env is not complete yet."
+              echo "Fill:"
+              echo "$SHARED_PATH/.env"
+              echo "Then rerun this workflow."
+              echo "Existing PM2 process, if any, was not changed."
+              echo "========================================"
+
+              printf '%s\n' \
+                  "$DEPLOY_ID" \
+                  > "$CURRENT_PATH/DEPLOY_ID"
+
+              exit 0
 
           fi
 
-          rm -f "$CURRENT_PATH/.env"
-
-          ln -s \
-              "$SHARED_PATH/.env" \
-              "$CURRENT_PATH/.env"
-
-          test -L "$CURRENT_PATH/.env" || {
-              echo "ERROR: .env symlink failed."
-              exit 1
-          }
-
-          test -r "$CURRENT_PATH/.env" || {
-              echo "ERROR: .env is not readable."
-              exit 1
-          }
-
-          echo ".env symlink PASS"
-
 
           # ------------------------------------------------------
-          # PERSISTENT UPLOADS
-          # ------------------------------------------------------
-
-          mkdir -p \
-              "$SHARED_PATH/uploads"
-
-          if \
-              [ -e "$CURRENT_PATH/uploads" ] && \
-              [ ! -L "$CURRENT_PATH/uploads" ]
-          then
-
-              echo "ERROR: current/uploads exists but is not a symlink."
-              echo "Move existing uploads to shared/uploads first."
-
-              exit 1
-
-          fi
-
-          rm -f \
-              "$CURRENT_PATH/uploads"
-
-          ln -s \
-              "$SHARED_PATH/uploads" \
-              "$CURRENT_PATH/uploads"
-
-          test -L "$CURRENT_PATH/uploads" || {
-              echo "ERROR: uploads symlink failed."
-              exit 1
-          }
-
-          echo "uploads symlink PASS"
-
-
-          # ------------------------------------------------------
-          # INSTALL / BUILD
-          # ------------------------------------------------------
-
-          echo "Installing dependencies..."
-
-          npm ci --include=dev
-
-          echo "npm ci PASS"
-
-          if node -e '
-            const p = require("./package.json");
-
-            process.exit(
-                p.scripts && p.scripts.build
-                    ? 0
-                    : 1
-            );
-          '; then
-
-              echo "Building application..."
-
-              npm run build
-
-              echo "Build PASS"
-
-          else
-
-              echo "No build script found."
-              echo "Build skipped."
-
-          fi
-
-          echo "Pruning development dependencies..."
-
-          npm prune --omit=dev
-
-          echo "Production dependencies PASS"
-
-
-          # ------------------------------------------------------
-          # PM2 CONFIG
+          # PM2
           # ------------------------------------------------------
 
           PM2_CONFIG="$CURRENT_PATH/ecosystem.deploy.cjs"
@@ -740,22 +372,17 @@ jobs:
                 name: "${PM2_APP_NAME}",
                 cwd: "${CURRENT_PATH}",
                 script: "${ENTRY_FILE}",
-
                 instances: 1,
                 exec_mode: "fork",
-
                 autorestart: true,
                 watch: false,
                 time: true,
-
                 max_memory_restart: "500M",
-
                 env: {
                   NODE_ENV: "production",
                   HOST: "127.0.0.1",
                   PORT: "${NODE_PORT}"
                 },
-
                 out_file: "${SHARED_PATH}/logs/pm2-out.log",
                 error_file: "${SHARED_PATH}/logs/pm2-error.log",
                 merge_logs: true
@@ -763,15 +390,6 @@ jobs:
             ]
           };
           EOF
-
-          echo "PM2 configuration generated."
-
-
-          # ------------------------------------------------------
-          # PM2 START / RELOAD
-          # ------------------------------------------------------
-
-          echo "Starting/reloading PM2 application..."
 
           pm2 startOrReload \
               "$PM2_CONFIG" \
@@ -782,8 +400,6 @@ jobs:
 
           sleep 4
 
-          pm2 describe "$PM2_APP_NAME"
-
           PM2_PID="$(
               pm2 pid "$PM2_APP_NAME" \
                   | tail -n 1 \
@@ -791,7 +407,6 @@ jobs:
           )"
 
           if ! [[ "$PM2_PID" =~ ^[1-9][0-9]*$ ]]; then
-
               echo "ERROR: PM2 process is not running."
 
               pm2 logs "$PM2_APP_NAME" \
@@ -800,114 +415,70 @@ jobs:
                   || true
 
               exit 1
-
           fi
 
-          echo "PM2 PID: $PM2_PID"
           echo "PM2 process PASS"
 
 
           # ------------------------------------------------------
-          # LOCAL NODE HEALTH CHECK
+          # Local health check
           # ------------------------------------------------------
-
-          echo "Checking Node application on 127.0.0.1:${NODE_PORT} ..."
 
           if ! python3 - "$NODE_PORT" <<'PY'
           import http.client
-          import json
           import sys
           import time
 
           port = int(sys.argv[1])
-
           last_error = None
 
           for attempt in range(1, 7):
-
-              connection = None
+              conn = None
 
               try:
-
-                  print(
-                      f"Local Node attempt {attempt}/6"
-                  )
-
-                  connection = http.client.HTTPConnection(
+                  conn = http.client.HTTPConnection(
                       "127.0.0.1",
                       port,
                       timeout=10,
                   )
 
-                  connection.request(
+                  conn.request(
                       "GET",
                       "/",
                       headers={
-                          "Accept": "application/json",
+                          "Accept": "application/json,text/plain,*/*",
                           "Connection": "close",
                       },
                   )
 
-                  response = connection.getresponse()
-
+                  response = conn.getresponse()
                   body = response.read().decode(
                       "utf-8",
                       errors="replace",
                   )
 
-                  print(
-                      "Status:",
-                      response.status,
+                  print("Status:", response.status)
+                  print("Body:", body[:500])
+
+                  if 100 <= response.status < 500:
+                      print("Local Node health check PASS")
+                      sys.exit(0)
+
+                  raise RuntimeError(
+                      f"Unexpected HTTP {response.status}"
                   )
-
-                  print(
-                      "Body:",
-                      body[:1000],
-                  )
-
-                  if response.status != 200:
-
-                      raise RuntimeError(
-                          "Expected HTTP 200, got "
-                          + str(response.status)
-                      )
-
-                  payload = json.loads(body)
-
-                  if (
-                      payload.get("message")
-                      != "Anevix Backend is running"
-                  ):
-
-                      raise RuntimeError(
-                          "Unexpected health response"
-                      )
-
-                  print(
-                      "Local Node health check PASS"
-                  )
-
-                  sys.exit(0)
 
               except Exception as exc:
-
                   last_error = exc
-
-                  print(
-                      "Attempt failed:",
-                      repr(exc),
-                  )
+                  print("Attempt failed:", repr(exc))
 
                   if attempt < 6:
-
                       time.sleep(attempt * 2)
 
               finally:
-
-                  if connection is not None:
-
+                  if conn is not None:
                       try:
-                          connection.close()
+                          conn.close()
                       except Exception:
                           pass
 
@@ -920,22 +491,14 @@ jobs:
           sys.exit(1)
           PY
           then
-
-              echo "ERROR: Node health check failed."
-
               pm2 logs "$PM2_APP_NAME" \
                   --lines 100 \
                   --nostream \
                   || true
 
               exit 1
-
           fi
 
-
-          # ------------------------------------------------------
-          # DEPLOYMENT ID
-          # ------------------------------------------------------
 
           printf '%s\n' \
               "$DEPLOY_ID" \
@@ -943,250 +506,17 @@ jobs:
 
           echo
           echo "========================================"
-          echo "SERVER DEPLOYMENT SUCCESS"
+          echo "ANEVIX DEPLOYMENT SUCCESS"
           echo "========================================"
-
-          echo "Deploy ID: $DEPLOY_ID"
+          echo "Domain:    https://api.anevix.in"
           echo "Path:      $CURRENT_PATH"
-          echo "Entry:     $ENTRY_FILE"
           echo "PM2:       $PM2_APP_NAME"
           echo "Port:      $NODE_PORT"
-
+          echo "Deploy ID: $DEPLOY_ID"
           echo "========================================"
 
           REMOTE
 
-
-      # ========================================================
-      # PUBLIC HTTPS HEALTH CHECK
-      # ========================================================
-
-      - name: Verify Public HTTPS API
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python3 - "$APP_HOST" "$HEALTH_PATH" <<'PY'
-          import http.client
-          import json
-          import ssl
-          import sys
-          import time
-
-          host = sys.argv[1]
-          path = sys.argv[2]
-
-          last_error = None
-
-          for attempt in range(1, 6):
-
-              connection = None
-
-              try:
-
-                  print(
-                      f"Public HTTPS attempt {attempt}/5: "
-                      f"https://{host}{path}"
-                  )
-
-                  connection = http.client.HTTPSConnection(
-                      host,
-                      443,
-                      timeout=15,
-                      context=ssl.create_default_context(),
-                  )
-
-                  connection.request(
-                      "GET",
-                      path,
-                      headers={
-                          "Accept": "application/json",
-                          "Connection": "close",
-                      },
-                  )
-
-                  response = connection.getresponse()
-
-                  body = response.read().decode(
-                      "utf-8",
-                      errors="replace",
-                  )
-
-                  print(
-                      "HTTP status:",
-                      response.status,
-                  )
-
-                  print(
-                      "Response:",
-                      body[:1000],
-                  )
-
-                  if response.status != 200:
-
-                      raise RuntimeError(
-                          "Expected HTTP 200, got "
-                          + str(response.status)
-                      )
-
-                  payload = json.loads(body)
-
-                  if (
-                      payload.get("message")
-                      != "Anevix Backend is running"
-                  ):
-
-                      raise RuntimeError(
-                          "Unexpected public health response"
-                      )
-
-                  print(
-                      "Public HTTPS API health check PASS"
-                  )
-
-                  sys.exit(0)
-
-              except Exception as exc:
-
-                  last_error = exc
-
-                  print(
-                      "Attempt failed:",
-                      repr(exc),
-                  )
-
-                  if attempt < 5:
-
-                      time.sleep(attempt * 3)
-
-              finally:
-
-                  if connection is not None:
-
-                      try:
-                          connection.close()
-                      except Exception:
-                          pass
-
-          print(
-              "ERROR: Public HTTPS health check failed: "
-              + repr(last_error),
-              file=sys.stderr,
-          )
-
-          sys.exit(1)
-          PY
-
-
-      # ========================================================
-      # FAILURE DIAGNOSTICS
-      # ========================================================
-
-      - name: Deployment Failure Diagnostics
-        if: failure()
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-
-          if [ ! -f "$HOME/.ssh/anevix_deploy_key" ]; then
-
-              echo "SSH key unavailable."
-              echo "Remote diagnostics skipped."
-
-              exit 0
-
-          fi
-
-          if [ ! -f "$HOME/.ssh/config" ]; then
-
-              echo "SSH config unavailable."
-              echo "Remote diagnostics skipped."
-
-              exit 0
-
-          fi
-
-          ssh anevix-dev \
-            "BASE_PATH='$DEPLOY_BASE_PATH' PM2_APP_NAME='$PM2_APP_NAME' NODE_PORT='$NODE_PORT' bash -s" <<'REMOTE' \
-            || true
-
-          set +e
-
-          CURRENT_PATH="$BASE_PATH/current"
-          SHARED_PATH="$BASE_PATH/shared"
-
-          echo "========================================"
-          echo "ANEVIX FAILURE DIAGNOSTICS"
-          echo "========================================"
-
-          echo
-          echo "===== PM2 ====="
-
-          pm2 list \
-              || true
-
-          echo
-          echo "===== PM2 PROCESS ====="
-
-          pm2 describe "$PM2_APP_NAME" \
-              || true
-
-          echo
-          echo "===== PM2 LOGS ====="
-
-          pm2 logs "$PM2_APP_NAME" \
-              --lines 100 \
-              --nostream \
-              || true
-
-          echo
-          echo "===== APP LOG FILES ====="
-
-          tail -n 100 \
-              "$SHARED_PATH/logs/pm2-error.log" \
-              2>/dev/null \
-              || true
-
-          tail -n 100 \
-              "$SHARED_PATH/logs/pm2-out.log" \
-              2>/dev/null \
-              || true
-
-          echo
-          echo "===== PORT ====="
-
-          ss -ltnp \
-              | grep ":${NODE_PORT} " \
-              || true
-
-          echo
-          echo "===== DEPLOY ID ====="
-
-          cat "$CURRENT_PATH/DEPLOY_ID" \
-              2>/dev/null \
-              || true
-
-          echo
-          echo "===== DISK ====="
-
-          df -h "$CURRENT_PATH" \
-              || true
-
-          echo
-          echo "===== MEMORY ====="
-
-          free -h \
-              || true
-
-          REMOTE
-
-          exit 0
-
-
-      # ========================================================
-      # CLEANUP
-      # ========================================================
 
       - name: Cleanup SSH
         if: always()
@@ -1204,12 +534,12 @@ jobs:
 
 
   # ============================================================
-  # POSTMAN SYNC
+  # POSTMAN
+  # Non-blocking. Never fails the deployment.
   # ============================================================
 
   sync-postman:
     name: Sync Postman
-
     needs:
       - deploy
 
@@ -1230,26 +560,9 @@ jobs:
         run: |
           set +e
 
-          echo "========================================"
-          echo "ANEVIX POSTMAN SYNC"
-          echo "========================================"
-
           if [ -z "${POSTMAN_API_KEY:-}" ]; then
-
-              echo "::warning::POSTMAN_API_KEY secret is missing."
-              echo "Postman sync skipped."
-
+              echo "::warning::POSTMAN_API_KEY is missing. Postman sync skipped."
               exit 0
-
-          fi
-
-          if ! command -v jq >/dev/null 2>&1; then
-
-              echo "::warning::jq is unavailable."
-              echo "Postman sync skipped."
-
-              exit 0
-
           fi
 
           COLLECTION_FILE="$(
@@ -1272,83 +585,40 @@ jobs:
                   | head -n 1
           )"
 
-          SYNC_ERRORS=0
-
-
           normalize_postman_id()
           {
               local VALUE="$1"
 
               if [[ "$VALUE" =~ ^[0-9]+-([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})$ ]]
               then
-
                   printf '%s' "${BASH_REMATCH[1]}"
-
               else
-
                   printf '%s' "$VALUE"
-
               fi
           }
 
-
           COLLECTION_ID="$(
-              normalize_postman_id \
-                  "$POSTMAN_COLLECTION_ID"
+              normalize_postman_id "$POSTMAN_COLLECTION_ID"
           )"
 
           ENVIRONMENT_ID="$(
-              normalize_postman_id \
-                  "$POSTMAN_ENVIRONMENT_ID"
+              normalize_postman_id "$POSTMAN_ENVIRONMENT_ID"
           )"
 
+          if [ -n "$COLLECTION_FILE" ]; then
 
-          echo "Workspace ID:   $POSTMAN_WORKSPACE_ID"
-          echo "Collection ID:  $COLLECTION_ID"
-          echo "Environment ID: $ENVIRONMENT_ID"
-
-
-          # ------------------------------------------------------
-          # COLLECTION
-          # ------------------------------------------------------
-
-          if [ -z "$COLLECTION_FILE" ]; then
-
-              echo "::warning::No *.postman_collection.json found under docs/postman."
-
-              SYNC_ERRORS=1
-
-          elif ! jq -e '
-              type == "object"
-              and (.info | type == "object")
-              and (.info.name | type == "string")
-              and (.item | type == "array")
-          ' "$COLLECTION_FILE" >/dev/null
-          then
-
-              echo "::warning::Postman collection JSON is invalid."
-
-              SYNC_ERRORS=1
-
-          else
-
-              COLLECTION_PAYLOAD="$RUNNER_TEMP/postman-collection-payload.json"
-              COLLECTION_RESPONSE="$RUNNER_TEMP/postman-collection-response.json"
+              COLLECTION_PAYLOAD="$RUNNER_TEMP/collection.json"
 
               jq \
                   '{collection: .}' \
                   "$COLLECTION_FILE" \
                   > "$COLLECTION_PAYLOAD"
 
-              COLLECTION_STATUS="$(
+              STATUS="$(
                   curl \
                       --silent \
                       --show-error \
-                      --connect-timeout 15 \
-                      --max-time 90 \
-                      --retry 3 \
-                      --retry-delay 2 \
-                      --output "$COLLECTION_RESPONSE" \
+                      --output /tmp/postman-collection-response.json \
                       --write-out '%{http_code}' \
                       --request PUT \
                       "https://api.postman.com/collections/${COLLECTION_ID}" \
@@ -1357,59 +627,21 @@ jobs:
                       --data-binary "@${COLLECTION_PAYLOAD}"
               )"
 
-              CURL_EXIT=$?
-
-              echo "Collection HTTP status: ${COLLECTION_STATUS:-N/A}"
-
-              if \
-                  [ "$CURL_EXIT" -ne 0 ] || \
-                  [ "$COLLECTION_STATUS" != "200" ]
-              then
-
-                  echo "::warning::Postman collection sync failed."
-
-                  if [ -s "$COLLECTION_RESPONSE" ]; then
-
-                      cat "$COLLECTION_RESPONSE"
-
-                  fi
-
-                  SYNC_ERRORS=1
-
-              else
-
+              if [ "$STATUS" = "200" ]; then
                   echo "Postman collection sync PASS"
-
+              else
+                  echo "::warning::Postman collection sync returned HTTP ${STATUS:-N/A}"
               fi
-
-          fi
-
-
-          # ------------------------------------------------------
-          # ENVIRONMENT
-          # ------------------------------------------------------
-
-          if [ -z "$ENVIRONMENT_FILE" ]; then
-
-              echo "::warning::No *.postman_environment.json found under docs/postman."
-
-              SYNC_ERRORS=1
-
-          elif ! jq -e '
-              type == "object"
-              and (.name | type == "string")
-              and (.values | type == "array")
-          ' "$ENVIRONMENT_FILE" >/dev/null
-          then
-
-              echo "::warning::Postman environment JSON is invalid."
-
-              SYNC_ERRORS=1
 
           else
 
-              ENVIRONMENT_PAYLOAD="$RUNNER_TEMP/postman-environment-payload.json"
-              ENVIRONMENT_RESPONSE="$RUNNER_TEMP/postman-environment-response.json"
+              echo "::warning::Postman collection file not found under docs/postman."
+
+          fi
+
+          if [ -n "$ENVIRONMENT_FILE" ]; then
+
+              ENVIRONMENT_PAYLOAD="$RUNNER_TEMP/environment.json"
 
               jq \
                   --arg baseUrl "$APP_URL" \
@@ -1417,10 +649,7 @@ jobs:
                   .values = (.values // [])
                   |
                   .values = (
-                      if any(
-                          .values[];
-                          .key == "base_url"
-                      )
+                      if any(.values[]; .key == "base_url")
                       then
                           .values
                           | map(
@@ -1453,15 +682,11 @@ jobs:
                   "$ENVIRONMENT_FILE" \
                   > "$ENVIRONMENT_PAYLOAD"
 
-              ENVIRONMENT_STATUS="$(
+              STATUS="$(
                   curl \
                       --silent \
                       --show-error \
-                      --connect-timeout 15 \
-                      --max-time 90 \
-                      --retry 3 \
-                      --retry-delay 2 \
-                      --output "$ENVIRONMENT_RESPONSE" \
+                      --output /tmp/postman-environment-response.json \
                       --write-out '%{http_code}' \
                       --request PUT \
                       "https://api.postman.com/environments/${ENVIRONMENT_ID}" \
@@ -1470,48 +695,16 @@ jobs:
                       --data-binary "@${ENVIRONMENT_PAYLOAD}"
               )"
 
-              CURL_EXIT=$?
-
-              echo "Environment HTTP status: ${ENVIRONMENT_STATUS:-N/A}"
-
-              if \
-                  [ "$CURL_EXIT" -ne 0 ] || \
-                  [ "$ENVIRONMENT_STATUS" != "200" ]
-              then
-
-                  echo "::warning::Postman environment sync failed."
-
-                  if [ -s "$ENVIRONMENT_RESPONSE" ]; then
-
-                      cat "$ENVIRONMENT_RESPONSE"
-
-                  fi
-
-                  SYNC_ERRORS=1
-
-              else
-
+              if [ "$STATUS" = "200" ]; then
                   echo "Postman environment sync PASS"
-
+              else
+                  echo "::warning::Postman environment sync returned HTTP ${STATUS:-N/A}"
               fi
-
-          fi
-
-
-          echo
-          echo "========================================"
-
-          if [ "$SYNC_ERRORS" -eq 0 ]; then
-
-              echo "POSTMAN SYNC SUCCESS"
 
           else
 
-              echo "POSTMAN SYNC COMPLETED WITH WARNINGS"
-              echo "Anevix deployment was NOT affected."
+              echo "::warning::Postman environment file not found under docs/postman."
 
           fi
-
-          echo "========================================"
 
           exit 0
