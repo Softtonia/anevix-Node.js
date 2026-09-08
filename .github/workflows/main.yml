@@ -220,6 +220,143 @@ jobs:
 
 
       # ========================================================
+      # RUNTIME ENVIRONMENT
+      # ========================================================
+
+      - name: Sync Runtime Environment
+        shell: bash
+        env:
+          RUNTIME_MONGO_URL: ${{ secrets.MONGO_URL }}
+          RUNTIME_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          RUNTIME_EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          RUNTIME_EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          TEMP_ENV="$RUNNER_TEMP/anevix-runtime.env"
+          : > "$TEMP_ENV"
+
+          append_secret()
+          {
+              local KEY="$1"
+              local VALUE="$2"
+
+              if [ -n "$VALUE" ]; then
+                  printf '%s=%s\n' "$KEY" "$VALUE" >> "$TEMP_ENV"
+                  echo "${KEY}: configured"
+              else
+                  echo "::warning::${KEY} GitHub secret is missing; existing server value will be preserved."
+              fi
+          }
+
+          append_secret "MONGO_URL" "${RUNTIME_MONGO_URL:-}"
+          append_secret "JWT_SECRET" "${RUNTIME_JWT_SECRET:-}"
+          append_secret "EMAIL_USER" "${RUNTIME_EMAIL_USER:-}"
+          append_secret "EMAIL_PASSWORD" "${RUNTIME_EMAIL_PASSWORD:-}"
+
+          chmod 600 "$TEMP_ENV"
+
+          REMOTE_TEMP="/tmp/anevix-runtime-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.env"
+
+          scp \
+              -F "$HOME/.ssh/config" \
+              "$TEMP_ENV" \
+              "anevix-dev:${REMOTE_TEMP}"
+
+          ssh anevix-dev \
+            "BASE_PATH='$DEPLOY_BASE_PATH' NODE_PORT='$NODE_PORT' APP_URL_EXPECTED='$APP_URL' REMOTE_TEMP='$REMOTE_TEMP' bash -s" <<'REMOTE'
+
+          set -euo pipefail
+
+          SHARED_PATH="$BASE_PATH/shared"
+          ENV_FILE="$SHARED_PATH/.env"
+
+          mkdir -p "$SHARED_PATH"
+          touch "$ENV_FILE"
+
+          python3 - \
+              "$ENV_FILE" \
+              "$REMOTE_TEMP" \
+              "$NODE_PORT" \
+              "$APP_URL_EXPECTED" <<'PY'
+          from pathlib import Path
+          import sys
+
+          env_path = Path(sys.argv[1])
+          managed_path = Path(sys.argv[2])
+          node_port = sys.argv[3]
+          app_url = sys.argv[4]
+
+          updates = {
+              "NODE_ENV": "production",
+              "HOST": "127.0.0.1",
+              "PORT": node_port,
+              "APP_URL": app_url,
+          }
+
+          if managed_path.exists():
+              for raw in managed_path.read_text(encoding="utf-8").splitlines():
+                  if not raw or raw.startswith("#") or "=" not in raw:
+                      continue
+
+                  key, value = raw.split("=", 1)
+
+                  if key:
+                      updates[key] = value
+
+          existing_lines = (
+              env_path.read_text(encoding="utf-8").splitlines()
+              if env_path.exists()
+              else []
+          )
+
+          output = []
+          written = set()
+
+          for line in existing_lines:
+              stripped = line.strip()
+
+              if stripped and not stripped.startswith("#") and "=" in line:
+                  key = line.split("=", 1)[0].strip()
+
+                  if key in updates:
+                      if key not in written:
+                          output.append(f"{key}={updates[key]}")
+                          written.add(key)
+                      continue
+
+              output.append(line)
+
+          for key, value in updates.items():
+              if key not in written:
+                  output.append(f"{key}={value}")
+
+          env_path.write_text(
+              "\n".join(output).rstrip() + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          rm -f "$REMOTE_TEMP"
+          chmod 640 "$ENV_FILE"
+
+          echo "Runtime environment sync PASS"
+
+          for KEY in NODE_ENV HOST PORT APP_URL MONGO_URL JWT_SECRET EMAIL_USER EMAIL_PASSWORD
+          do
+              if grep -Eq "^${KEY}=.+$" "$ENV_FILE"; then
+                  echo "${KEY}: PRESENT"
+              else
+                  echo "${KEY}: NOT SET"
+              fi
+          done
+
+          REMOTE
+
+          rm -f "$TEMP_ENV"
+
+
+      # ========================================================
       # UPLOAD
       # ========================================================
 
