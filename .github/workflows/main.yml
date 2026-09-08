@@ -190,10 +190,7 @@ jobs:
 
           for COMMAND in \
               rsync \
-              python3 \
-              tar \
-              gzip \
-              sha256sum
+              python3
           do
               if ! command -v "$COMMAND" >/dev/null 2>&1; then
                   echo "ERROR: Required command missing: $COMMAND"
@@ -275,10 +272,16 @@ jobs:
           NODE_PACKAGE="node-v${NODE_RUNTIME_VERSION}-linux-${NODE_SERVER_ARCH}"
           NODE_ARCHIVE="${NODE_PACKAGE}.tar.gz"
 
-          NODE_DOWNLOAD_DIR="$RUNNER_TEMP/anevix-node-runtime"
+          NODE_DOWNLOAD_DIR="$RUNNER_TEMP/anevix-node-download"
+          NODE_EXTRACT_DIR="$RUNNER_TEMP/anevix-node-extracted"
 
-          rm -rf "$NODE_DOWNLOAD_DIR"
-          mkdir -p "$NODE_DOWNLOAD_DIR"
+          rm -rf \
+              "$NODE_DOWNLOAD_DIR" \
+              "$NODE_EXTRACT_DIR"
+
+          mkdir -p \
+              "$NODE_DOWNLOAD_DIR" \
+              "$NODE_EXTRACT_DIR"
 
           echo "Downloading Node ${NODE_RUNTIME_VERSION} on GitHub runner..."
 
@@ -324,145 +327,90 @@ jobs:
                   SHASUMS256.node.txt
           )
 
-          NODE_SHA256="$(
-              sha256sum "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE" \
-                  | awk '{print $1}'
+          echo "Extracting Node on GitHub runner..."
+
+          tar \
+              -xzf "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE" \
+              -C "$NODE_EXTRACT_DIR"
+
+          NODE_SOURCE="$NODE_EXTRACT_DIR/$NODE_PACKAGE"
+
+          test -x "$NODE_SOURCE/bin/node" || {
+              echo "::error::Extracted Node binary is missing."
+              exit 1
+          }
+
+          ACTUAL_VERSION="$(
+              "$NODE_SOURCE/bin/node" \
+                  --version
           )"
 
+          if [ "$ACTUAL_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
+              echo "::error::Runner Node archive version mismatch."
+              echo "Expected: v${NODE_RUNTIME_VERSION}"
+              echo "Actual:   $ACTUAL_VERSION"
+              exit 1
+          fi
+
           echo "NODE_PACKAGE=$NODE_PACKAGE" >> "$GITHUB_ENV"
-          echo "NODE_ARCHIVE=$NODE_ARCHIVE" >> "$GITHUB_ENV"
-          echo "NODE_DOWNLOAD_DIR=$NODE_DOWNLOAD_DIR" >> "$GITHUB_ENV"
-          echo "NODE_SHA256=$NODE_SHA256" >> "$GITHUB_ENV"
+          echo "NODE_SOURCE=$NODE_SOURCE" >> "$GITHUB_ENV"
 
-          echo "Node runtime download PASS"
+          echo "Runner Node: $ACTUAL_VERSION"
+          echo "Node runtime preparation PASS"
 
 
-      - name: Upload And Install Anevix Node Runtime
+      - name: Upload Anevix Node Runtime
         shell: bash
         run: |
           set -euo pipefail
 
-          REMOTE_ARCHIVE="/tmp/${NODE_ARCHIVE}.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
+          REMOTE_RUNTIME_ROOT="${DEPLOY_BASE_PATH}/shared/runtime"
+          REMOTE_NODE_HOME="${REMOTE_RUNTIME_ROOT}/${NODE_PACKAGE}"
 
-          scp \
-              -F "$HOME/.ssh/config" \
-              "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE" \
-              "anevix-dev:${REMOTE_ARCHIVE}"
+          echo "Uploading extracted Node runtime without server-side archive extraction..."
 
           ssh anevix-dev \
-            "BASE_PATH='$DEPLOY_BASE_PATH' NODE_RUNTIME_VERSION='$NODE_RUNTIME_VERSION' NODE_PACKAGE='$NODE_PACKAGE' NODE_ARCHIVE='$NODE_ARCHIVE' NODE_SHA256='$NODE_SHA256' REMOTE_ARCHIVE='$REMOTE_ARCHIVE' bash -s" <<'REMOTE'
+            "RUNTIME_ROOT='$REMOTE_RUNTIME_ROOT' NODE_HOME='$REMOTE_NODE_HOME' bash -s" <<'REMOTE'
 
           set -euo pipefail
 
-          SHARED_PATH="$BASE_PATH/shared"
-          RUNTIME_ROOT="$SHARED_PATH/runtime"
-
-          NODE_HOME="$RUNTIME_ROOT/$NODE_PACKAGE"
-          NODE_LINK="$RUNTIME_ROOT/node-current"
-
           mkdir -p "$RUNTIME_ROOT"
+          mkdir -p "$NODE_HOME"
 
-          cleanup()
-          {
-              rm -f "$REMOTE_ARCHIVE"
-          }
+          REMOTE
 
-          trap cleanup EXIT
+          # No -z compression:
+          # keep server-side CPU/RAM usage as low as possible.
+          rsync \
+              -a \
+              --delete \
+              --partial \
+              --timeout=180 \
+              --no-owner \
+              --no-group \
+              -e "ssh -F $HOME/.ssh/config" \
+              "$NODE_SOURCE/" \
+              "anevix-dev:${REMOTE_NODE_HOME}/"
 
-          INSTALLED_VERSION=""
+          ssh anevix-dev \
+            "RUNTIME_ROOT='$REMOTE_RUNTIME_ROOT' NODE_HOME='$REMOTE_NODE_HOME' NODE_RUNTIME_VERSION='$NODE_RUNTIME_VERSION' bash -s" <<'REMOTE'
 
-          if [ -x "$NODE_HOME/bin/node" ]; then
-              INSTALLED_VERSION="$(
-                  "$NODE_HOME/bin/node" \
-                      --version \
-                      2>/dev/null \
-                      || true
-              )"
-          fi
+          set -euo pipefail
 
-          if [ "$INSTALLED_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
-
-              if [ -n "$INSTALLED_VERSION" ]; then
-                  echo "Existing isolated Node is ${INSTALLED_VERSION}; replacing it."
-              else
-                  echo "Installing isolated Node ${NODE_RUNTIME_VERSION}..."
-              fi
-
-              ACTUAL_SHA256="$(
-                  sha256sum "$REMOTE_ARCHIVE" \
-                      | awk '{print $1}'
-              )"
-
-              if [ "$ACTUAL_SHA256" != "$NODE_SHA256" ]; then
-                  echo "ERROR: Node archive checksum mismatch after upload."
-                  exit 1
-              fi
-
-              TEMP_EXTRACT="$RUNTIME_ROOT/.node-extract-${GITHUB_RUN_ID:-manual}"
-
-              rm -rf "$TEMP_EXTRACT"
-              mkdir -p "$TEMP_EXTRACT"
-
-              tar \
-                  -xzf "$REMOTE_ARCHIVE" \
-                  -C "$TEMP_EXTRACT"
-
-              EXTRACTED_NODE="$TEMP_EXTRACT/$NODE_PACKAGE/bin/node"
-
-              test -x "$EXTRACTED_NODE" || {
-                  echo "ERROR: Extracted Node binary is missing."
-                  rm -rf "$TEMP_EXTRACT"
-                  exit 1
-              }
-
-              EXTRACTED_VERSION="$(
-                  "$EXTRACTED_NODE" \
-                      --version \
-                      2>/dev/null \
-                      || true
-              )"
-
-              if [ "$EXTRACTED_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
-                  echo "ERROR: Extracted Node version mismatch."
-                  echo "Expected: v${NODE_RUNTIME_VERSION}"
-                  echo "Actual:   ${EXTRACTED_VERSION:-UNAVAILABLE}"
-                  rm -rf "$TEMP_EXTRACT"
-                  exit 1
-              fi
-
-              rm -rf "$NODE_HOME"
-
-              mv \
-                  "$TEMP_EXTRACT/$NODE_PACKAGE" \
-                  "$NODE_HOME"
-
-              rm -rf "$TEMP_EXTRACT"
-
-          else
-
-              echo "Node ${NODE_RUNTIME_VERSION} already installed correctly."
-
-          fi
-
-          ln -sfn \
-              "$NODE_HOME" \
-              "$NODE_LINK"
-
-          NODE_BIN="$NODE_LINK/bin/node"
-          NPM_CLI="$NODE_LINK/lib/node_modules/npm/bin/npm-cli.js"
+          NODE_LINK="$RUNTIME_ROOT/node-current"
+          NODE_BIN="$NODE_HOME/bin/node"
+          NPM_CLI="$NODE_HOME/lib/node_modules/npm/bin/npm-cli.js"
 
           test -x "$NODE_BIN" || {
-              echo "ERROR: Isolated Node binary is not executable."
+              echo "ERROR: Uploaded Node binary is missing."
               exit 1
           }
 
           test -f "$NPM_CLI" || {
-              echo "ERROR: Isolated npm CLI is missing."
+              echo "ERROR: Uploaded npm CLI is missing."
               exit 1
           }
 
-          # Use absolute binaries first. PATH is updated only for
-          # lifecycle scripts spawned later by npm.
           ACTUAL_NODE_VERSION="$(
               "$NODE_BIN" --version
           )"
@@ -471,39 +419,20 @@ jobs:
               "$NODE_BIN" "$NPM_CLI" --version
           )"
 
-          echo "Anevix Node: $ACTUAL_NODE_VERSION"
-          echo "Anevix npm:  $ACTUAL_NPM_VERSION"
-
           if [ "$ACTUAL_NODE_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
-              echo "ERROR: Anevix Node version mismatch."
+              echo "ERROR: Uploaded Node version mismatch."
               echo "Expected: v${NODE_RUNTIME_VERSION}"
               echo "Actual:   $ACTUAL_NODE_VERSION"
               exit 1
           fi
 
-          export PATH="$NODE_LINK/bin:$PATH"
-          hash -r
+          ln -sfn \
+              "$NODE_HOME" \
+              "$NODE_LINK"
 
-          "$NODE_BIN" - <<'NODE'
-          const [major, minor] =
-              process.versions.node
-                  .split(".")
-                  .map(Number);
-
-          if (
-              major < 22
-              || (major === 20 && minor < 19)
-          ) {
-              console.error(
-                  "ERROR: Node runtime is too old."
-              );
-              process.exit(1);
-          }
-
-          console.log(
-              "Anevix Node runtime compatibility PASS"
-          );
-          NODE
+          echo "Anevix Node: $ACTUAL_NODE_VERSION"
+          echo "Anevix npm:  $ACTUAL_NPM_VERSION"
+          echo "Anevix Node runtime upload PASS"
 
           REMOTE
 
