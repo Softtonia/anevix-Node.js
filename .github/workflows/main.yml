@@ -191,8 +191,8 @@ jobs:
           for COMMAND in \
               rsync \
               python3 \
-              curl \
               tar \
+              gzip \
               sha256sum
           do
               if ! command -v "$COMMAND" >/dev/null 2>&1; then
@@ -234,93 +234,184 @@ jobs:
       # ========================================================
       # ISOLATED NODE RUNTIME
       #
-      # Node 18 on the shared server is intentionally left alone.
-      # Anevix gets its own Node 24 LTS runtime under shared/runtime.
+      # IMPORTANT:
+      # Node is downloaded on the GitHub runner, NOT on the server.
+      # This avoids exit 137 / OOM kills during server-side curl.
+      # We use the official Linux .tar.gz build because gzip
+      # extraction has a much smaller memory footprint than xz.
       # ========================================================
 
-      - name: Ensure Anevix Node Runtime
+      - name: Detect Server Architecture
         shell: bash
         run: |
           set -euo pipefail
 
+          SERVER_ARCH="$(
+              ssh anevix-dev '
+                  case "$(uname -m)" in
+                      x86_64)
+                          printf "x64"
+                          ;;
+                      aarch64|arm64)
+                          printf "arm64"
+                          ;;
+                      *)
+                          echo "Unsupported architecture: $(uname -m)" >&2
+                          exit 1
+                          ;;
+                  esac
+              '
+          )"
+
+          echo "NODE_SERVER_ARCH=$SERVER_ARCH" >> "$GITHUB_ENV"
+          echo "Server architecture: $SERVER_ARCH"
+
+
+      - name: Prepare Node Runtime On Runner
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          NODE_PACKAGE="node-v${NODE_RUNTIME_VERSION}-linux-${NODE_SERVER_ARCH}"
+          NODE_ARCHIVE="${NODE_PACKAGE}.tar.gz"
+
+          NODE_DOWNLOAD_DIR="$RUNNER_TEMP/anevix-node-runtime"
+
+          rm -rf "$NODE_DOWNLOAD_DIR"
+          mkdir -p "$NODE_DOWNLOAD_DIR"
+
+          echo "Downloading Node ${NODE_RUNTIME_VERSION} on GitHub runner..."
+
+          curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              --retry 3 \
+              --retry-delay 2 \
+              --connect-timeout 15 \
+              --max-time 300 \
+              "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/${NODE_ARCHIVE}" \
+              --output "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE"
+
+          curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              --retry 3 \
+              --retry-delay 2 \
+              --connect-timeout 15 \
+              --max-time 60 \
+              "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/SHASUMS256.txt" \
+              --output "$NODE_DOWNLOAD_DIR/SHASUMS256.txt"
+
+          (
+              cd "$NODE_DOWNLOAD_DIR"
+
+              grep \
+                  " ${NODE_ARCHIVE}$" \
+                  SHASUMS256.txt \
+                  > SHASUMS256.node.txt
+
+              test -s SHASUMS256.node.txt || {
+                  echo "::error::Node checksum entry not found."
+                  exit 1
+              }
+
+              sha256sum \
+                  -c \
+                  SHASUMS256.node.txt
+          )
+
+          NODE_SHA256="$(
+              sha256sum "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE" \
+                  | awk '{print $1}'
+          )"
+
+          echo "NODE_PACKAGE=$NODE_PACKAGE" >> "$GITHUB_ENV"
+          echo "NODE_ARCHIVE=$NODE_ARCHIVE" >> "$GITHUB_ENV"
+          echo "NODE_DOWNLOAD_DIR=$NODE_DOWNLOAD_DIR" >> "$GITHUB_ENV"
+          echo "NODE_SHA256=$NODE_SHA256" >> "$GITHUB_ENV"
+
+          echo "Node runtime download PASS"
+
+
+      - name: Upload And Install Anevix Node Runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REMOTE_ARCHIVE="/tmp/${NODE_ARCHIVE}.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
+
+          scp \
+              -F "$HOME/.ssh/config" \
+              "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE" \
+              "anevix-dev:${REMOTE_ARCHIVE}"
+
           ssh anevix-dev \
-            "BASE_PATH='$DEPLOY_BASE_PATH' NODE_RUNTIME_VERSION='$NODE_RUNTIME_VERSION' bash -s" <<'REMOTE'
+            "BASE_PATH='$DEPLOY_BASE_PATH' NODE_RUNTIME_VERSION='$NODE_RUNTIME_VERSION' NODE_PACKAGE='$NODE_PACKAGE' NODE_ARCHIVE='$NODE_ARCHIVE' NODE_SHA256='$NODE_SHA256' REMOTE_ARCHIVE='$REMOTE_ARCHIVE' bash -s" <<'REMOTE'
 
           set -euo pipefail
 
           SHARED_PATH="$BASE_PATH/shared"
           RUNTIME_ROOT="$SHARED_PATH/runtime"
 
-          case "$(uname -m)" in
-              x86_64)
-                  NODE_ARCH="x64"
-                  ;;
-              aarch64|arm64)
-                  NODE_ARCH="arm64"
-                  ;;
-              *)
-                  echo "ERROR: Unsupported server architecture: $(uname -m)"
-                  exit 1
-                  ;;
-          esac
-
-          NODE_PACKAGE="node-v${NODE_RUNTIME_VERSION}-linux-${NODE_ARCH}"
           NODE_HOME="$RUNTIME_ROOT/$NODE_PACKAGE"
           NODE_LINK="$RUNTIME_ROOT/node-current"
 
           mkdir -p "$RUNTIME_ROOT"
 
+          cleanup()
+          {
+              rm -f "$REMOTE_ARCHIVE"
+          }
+
+          trap cleanup EXIT
+
           if [ ! -x "$NODE_HOME/bin/node" ]; then
 
-              echo "Installing isolated Node ${NODE_RUNTIME_VERSION} (${NODE_ARCH})..."
+              echo "Installing isolated Node ${NODE_RUNTIME_VERSION}..."
 
-              TMP_DIR="$RUNTIME_ROOT/.node-install-${NODE_RUNTIME_VERSION}-$$"
-              ARCHIVE="$TMP_DIR/${NODE_PACKAGE}.tar.xz"
-              SHASUMS="$TMP_DIR/SHASUMS256.txt"
+              ACTUAL_SHA256="$(
+                  sha256sum "$REMOTE_ARCHIVE" \
+                      | awk '{print $1}'
+              )"
 
-              rm -rf "$TMP_DIR"
-              mkdir -p "$TMP_DIR"
+              if [ "$ACTUAL_SHA256" != "$NODE_SHA256" ]; then
+                  echo "ERROR: Node archive checksum mismatch after upload."
+                  exit 1
+              fi
 
-              curl \
-                  --fail \
-                  --silent \
-                  --show-error \
-                  --location \
-                  --retry 3 \
-                  --connect-timeout 15 \
-                  --max-time 180 \
-                  "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/${NODE_PACKAGE}.tar.xz" \
-                  --output "$ARCHIVE"
+              TEMP_EXTRACT="$RUNTIME_ROOT/.node-extract-${GITHUB_RUN_ID:-manual}"
 
-              curl \
-                  --fail \
-                  --silent \
-                  --show-error \
-                  --location \
-                  --retry 3 \
-                  --connect-timeout 15 \
-                  --max-time 60 \
-                  "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/SHASUMS256.txt" \
-                  --output "$SHASUMS"
+              rm -rf "$TEMP_EXTRACT"
+              mkdir -p "$TEMP_EXTRACT"
 
-              (
-                  cd "$TMP_DIR"
-
-                  grep \
-                      " ${NODE_PACKAGE}.tar.xz$" \
-                      "SHASUMS256.txt" \
-                      > "SHASUMS256.node.txt"
-
-                  sha256sum \
-                      -c \
-                      "SHASUMS256.node.txt"
-              )
-
+              # gzip is intentionally used instead of xz to keep
+              # extraction memory usage low on this shared server.
               tar \
-                  -xJf "$ARCHIVE" \
-                  -C "$RUNTIME_ROOT"
+                  -xzf "$REMOTE_ARCHIVE" \
+                  -C "$TEMP_EXTRACT"
 
-              rm -rf "$TMP_DIR"
+              test -x "$TEMP_EXTRACT/$NODE_PACKAGE/bin/node" || {
+                  echo "ERROR: Extracted Node binary is missing."
+                  rm -rf "$TEMP_EXTRACT"
+                  exit 1
+              }
+
+              rm -rf "$NODE_HOME"
+
+              mv \
+                  "$TEMP_EXTRACT/$NODE_PACKAGE" \
+                  "$NODE_HOME"
+
+              rm -rf "$TEMP_EXTRACT"
+
+          else
+
+              echo "Node ${NODE_RUNTIME_VERSION} already installed."
+              echo "Download will only be verified/cleaned."
 
           fi
 
@@ -333,7 +424,7 @@ jobs:
           echo "Anevix Node: $(node --version)"
           echo "Anevix npm:  $(npm --version)"
 
-          node -e '
+          node - <<'NODE'
           const [major, minor] =
               process.versions.node
                   .split(".")
@@ -352,7 +443,7 @@ jobs:
           console.log(
               "Anevix Node runtime compatibility PASS"
           );
-          '
+          NODE
 
           REMOTE
 
