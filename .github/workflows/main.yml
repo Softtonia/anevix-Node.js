@@ -27,6 +27,7 @@ env:
 
   NODE_PORT: "3101"
   PM2_APP_NAME: "anevix-api"
+  NODE_RUNTIME_VERSION: "24.20.0"
 
   # ============================================================
   # POSTMAN
@@ -187,7 +188,12 @@ jobs:
           CURRENT_PATH="$BASE_PATH/current"
           SHARED_PATH="$BASE_PATH/shared"
 
-          for COMMAND in node npm pm2 rsync python3
+          for COMMAND in \
+              rsync \
+              python3 \
+              curl \
+              tar \
+              sha256sum
           do
               if ! command -v "$COMMAND" >/dev/null 2>&1; then
                   echo "ERROR: Required command missing: $COMMAND"
@@ -198,10 +204,16 @@ jobs:
           mkdir -p \
               "$CURRENT_PATH" \
               "$SHARED_PATH/logs" \
-              "$SHARED_PATH/uploads"
+              "$SHARED_PATH/uploads" \
+              "$SHARED_PATH/runtime"
 
           test -w "$CURRENT_PATH" || {
               echo "ERROR: $CURRENT_PATH is not writable."
+              exit 1
+          }
+
+          test -w "$SHARED_PATH" || {
+              echo "ERROR: $SHARED_PATH is not writable."
               exit 1
           }
 
@@ -211,10 +223,136 @@ jobs:
               chmod 640 "$SHARED_PATH/.env"
           fi
 
-          echo "Node: $(node --version)"
-          echo "npm:  $(npm --version)"
-          echo "PM2:  $(pm2 --version)"
+          echo "System Node (not used by Anevix runtime):"
+          node --version 2>/dev/null || true
+
           echo "Server preflight PASS"
+
+          REMOTE
+
+
+      # ========================================================
+      # ISOLATED NODE RUNTIME
+      #
+      # Node 18 on the shared server is intentionally left alone.
+      # Anevix gets its own Node 24 LTS runtime under shared/runtime.
+      # ========================================================
+
+      - name: Ensure Anevix Node Runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh anevix-dev \
+            "BASE_PATH='$DEPLOY_BASE_PATH' NODE_RUNTIME_VERSION='$NODE_RUNTIME_VERSION' bash -s" <<'REMOTE'
+
+          set -euo pipefail
+
+          SHARED_PATH="$BASE_PATH/shared"
+          RUNTIME_ROOT="$SHARED_PATH/runtime"
+
+          case "$(uname -m)" in
+              x86_64)
+                  NODE_ARCH="x64"
+                  ;;
+              aarch64|arm64)
+                  NODE_ARCH="arm64"
+                  ;;
+              *)
+                  echo "ERROR: Unsupported server architecture: $(uname -m)"
+                  exit 1
+                  ;;
+          esac
+
+          NODE_PACKAGE="node-v${NODE_RUNTIME_VERSION}-linux-${NODE_ARCH}"
+          NODE_HOME="$RUNTIME_ROOT/$NODE_PACKAGE"
+          NODE_LINK="$RUNTIME_ROOT/node-current"
+
+          mkdir -p "$RUNTIME_ROOT"
+
+          if [ ! -x "$NODE_HOME/bin/node" ]; then
+
+              echo "Installing isolated Node ${NODE_RUNTIME_VERSION} (${NODE_ARCH})..."
+
+              TMP_DIR="$RUNTIME_ROOT/.node-install-${NODE_RUNTIME_VERSION}-$$"
+              ARCHIVE="$TMP_DIR/${NODE_PACKAGE}.tar.xz"
+              SHASUMS="$TMP_DIR/SHASUMS256.txt"
+
+              rm -rf "$TMP_DIR"
+              mkdir -p "$TMP_DIR"
+
+              curl \
+                  --fail \
+                  --silent \
+                  --show-error \
+                  --location \
+                  --retry 3 \
+                  --connect-timeout 15 \
+                  --max-time 180 \
+                  "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/${NODE_PACKAGE}.tar.xz" \
+                  --output "$ARCHIVE"
+
+              curl \
+                  --fail \
+                  --silent \
+                  --show-error \
+                  --location \
+                  --retry 3 \
+                  --connect-timeout 15 \
+                  --max-time 60 \
+                  "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/SHASUMS256.txt" \
+                  --output "$SHASUMS"
+
+              (
+                  cd "$TMP_DIR"
+
+                  grep \
+                      " ${NODE_PACKAGE}.tar.xz$" \
+                      "SHASUMS256.txt" \
+                      > "SHASUMS256.node.txt"
+
+                  sha256sum \
+                      -c \
+                      "SHASUMS256.node.txt"
+              )
+
+              tar \
+                  -xJf "$ARCHIVE" \
+                  -C "$RUNTIME_ROOT"
+
+              rm -rf "$TMP_DIR"
+
+          fi
+
+          ln -sfn \
+              "$NODE_HOME" \
+              "$NODE_LINK"
+
+          export PATH="$NODE_LINK/bin:$PATH"
+
+          echo "Anevix Node: $(node --version)"
+          echo "Anevix npm:  $(npm --version)"
+
+          node -e '
+          const [major, minor] =
+              process.versions.node
+                  .split(".")
+                  .map(Number);
+
+          if (
+              major < 22
+              || (major === 20 && minor < 19)
+          ) {
+              console.error(
+                  "ERROR: Node runtime is too old."
+              );
+              process.exit(1);
+          }
+
+          console.log(
+              "Anevix Node runtime compatibility PASS"
+          );
+          '
 
           REMOTE
 
@@ -406,6 +544,24 @@ jobs:
           CURRENT_PATH="$BASE_PATH/current"
           SHARED_PATH="$BASE_PATH/shared"
 
+          NODE_HOME="$SHARED_PATH/runtime/node-current"
+
+          test -x "$NODE_HOME/bin/node" || {
+              echo "ERROR: Isolated Anevix Node runtime is missing."
+              exit 1
+          }
+
+          export PATH="$NODE_HOME/bin:$PATH"
+
+          # Keep Anevix PM2 completely separate from other apps/users.
+          export PM2_HOME="$HOME/.pm2-anevix"
+
+          mkdir -p               "$PM2_HOME"               "$SHARED_PATH/logs"
+
+          echo "Runtime Node: $(node --version)"
+          echo "Runtime npm:  $(npm --version)"
+          echo "PM2 home:     $PM2_HOME"
+
           cd "$CURRENT_PATH"
 
           test -f package.json || {
@@ -525,40 +681,47 @@ jobs:
 
           # ------------------------------------------------------
           # PM2
+          #
+          # Do not use ecosystem JSON/startOrReload here.
+          # Direct process commands avoid PM2's _startJson path and
+          # the "config.deploy" TypeError seen with PM2 7.
           # ------------------------------------------------------
 
-          PM2_CONFIG="$CURRENT_PATH/ecosystem.deploy.cjs"
+          export NODE_ENV="production"
+          export HOST="127.0.0.1"
+          export PORT="$NODE_PORT"
 
-          cat > "$PM2_CONFIG" <<EOF
-          module.exports = {
-            apps: [
-              {
-                name: "${PM2_APP_NAME}",
-                cwd: "${CURRENT_PATH}",
-                script: "${ENTRY_FILE}",
-                instances: 1,
-                exec_mode: "fork",
-                autorestart: true,
-                watch: false,
-                time: true,
-                max_memory_restart: "500M",
-                env: {
-                  NODE_ENV: "production",
-                  HOST: "127.0.0.1",
-                  PORT: "${NODE_PORT}"
-                },
-                out_file: "${SHARED_PATH}/logs/pm2-out.log",
-                error_file: "${SHARED_PATH}/logs/pm2-error.log",
-                merge_logs: true
-              }
-            ]
-          };
-          EOF
+          if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
 
-          pm2 startOrReload \
-              "$PM2_CONFIG" \
-              --only "$PM2_APP_NAME" \
-              --update-env
+              echo "Restarting existing Anevix PM2 process..."
+
+              pm2 restart \
+                  "$PM2_APP_NAME" \
+                  --update-env
+
+          else
+
+              if ss -ltn 2>/dev/null \
+                  | grep -q ":${NODE_PORT} "
+              then
+                  echo "ERROR: Port ${NODE_PORT} is already in use."
+                  echo "Refusing to stop an unknown process."
+                  exit 1
+              fi
+
+              echo "Starting Anevix PM2 process..."
+
+              pm2 start \
+                  "$CURRENT_PATH/$ENTRY_FILE" \
+                  --name "$PM2_APP_NAME" \
+                  --cwd "$CURRENT_PATH" \
+                  --interpreter "$NODE_HOME/bin/node" \
+                  --time \
+                  --max-memory-restart 500M \
+                  --output "$SHARED_PATH/logs/pm2-out.log" \
+                  --error "$SHARED_PATH/logs/pm2-error.log"
+
+          fi
 
           pm2 save
 
@@ -571,6 +734,7 @@ jobs:
           )"
 
           if ! [[ "$PM2_PID" =~ ^[1-9][0-9]*$ ]]; then
+
               echo "ERROR: PM2 process is not running."
 
               pm2 logs "$PM2_APP_NAME" \
@@ -579,8 +743,10 @@ jobs:
                   || true
 
               exit 1
+
           fi
 
+          echo "PM2 PID: $PM2_PID"
           echo "PM2 process PASS"
 
 
