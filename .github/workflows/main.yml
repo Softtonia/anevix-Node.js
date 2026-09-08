@@ -27,6 +27,7 @@ env:
 
   NODE_PORT: "3101"
   PM2_APP_NAME: "anevix-api"
+  NODE_RUNTIME_VERSION: "24.20.0"
 
   # ============================================================
   # POSTMAN
@@ -187,7 +188,9 @@ jobs:
           CURRENT_PATH="$BASE_PATH/current"
           SHARED_PATH="$BASE_PATH/shared"
 
-          for COMMAND in node npm pm2 rsync python3
+          for COMMAND in \
+              rsync \
+              python3
           do
               if ! command -v "$COMMAND" >/dev/null 2>&1; then
                   echo "ERROR: Required command missing: $COMMAND"
@@ -198,10 +201,16 @@ jobs:
           mkdir -p \
               "$CURRENT_PATH" \
               "$SHARED_PATH/logs" \
-              "$SHARED_PATH/uploads"
+              "$SHARED_PATH/uploads" \
+              "$SHARED_PATH/runtime"
 
           test -w "$CURRENT_PATH" || {
               echo "ERROR: $CURRENT_PATH is not writable."
+              exit 1
+          }
+
+          test -w "$SHARED_PATH" || {
+              echo "ERROR: $SHARED_PATH is not writable."
               exit 1
           }
 
@@ -211,12 +220,358 @@ jobs:
               chmod 640 "$SHARED_PATH/.env"
           fi
 
-          echo "Node: $(node --version)"
-          echo "npm:  $(npm --version)"
-          echo "PM2:  $(pm2 --version)"
+          echo "System Node (not used by Anevix runtime):"
+          node --version 2>/dev/null || true
+
           echo "Server preflight PASS"
 
           REMOTE
+
+
+      # ========================================================
+      # ISOLATED NODE RUNTIME
+      #
+      # IMPORTANT:
+      # Node is downloaded on the GitHub runner, NOT on the server.
+      # This avoids exit 137 / OOM kills during server-side curl.
+      # We use the official Linux .tar.gz build because gzip
+      # extraction has a much smaller memory footprint than xz.
+      # ========================================================
+
+      - name: Detect Server Architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SERVER_ARCH="$(
+              ssh anevix-dev '
+                  case "$(uname -m)" in
+                      x86_64)
+                          printf "x64"
+                          ;;
+                      aarch64|arm64)
+                          printf "arm64"
+                          ;;
+                      *)
+                          echo "Unsupported architecture: $(uname -m)" >&2
+                          exit 1
+                          ;;
+                  esac
+              '
+          )"
+
+          echo "NODE_SERVER_ARCH=$SERVER_ARCH" >> "$GITHUB_ENV"
+          echo "Server architecture: $SERVER_ARCH"
+
+
+      - name: Prepare Node Runtime On Runner
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          NODE_PACKAGE="node-v${NODE_RUNTIME_VERSION}-linux-${NODE_SERVER_ARCH}"
+          NODE_ARCHIVE="${NODE_PACKAGE}.tar.gz"
+
+          NODE_DOWNLOAD_DIR="$RUNNER_TEMP/anevix-node-download"
+          NODE_EXTRACT_DIR="$RUNNER_TEMP/anevix-node-extracted"
+
+          rm -rf \
+              "$NODE_DOWNLOAD_DIR" \
+              "$NODE_EXTRACT_DIR"
+
+          mkdir -p \
+              "$NODE_DOWNLOAD_DIR" \
+              "$NODE_EXTRACT_DIR"
+
+          echo "Downloading Node ${NODE_RUNTIME_VERSION} on GitHub runner..."
+
+          curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              --retry 3 \
+              --retry-delay 2 \
+              --connect-timeout 15 \
+              --max-time 300 \
+              "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/${NODE_ARCHIVE}" \
+              --output "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE"
+
+          curl \
+              --fail \
+              --silent \
+              --show-error \
+              --location \
+              --retry 3 \
+              --retry-delay 2 \
+              --connect-timeout 15 \
+              --max-time 60 \
+              "https://nodejs.org/dist/v${NODE_RUNTIME_VERSION}/SHASUMS256.txt" \
+              --output "$NODE_DOWNLOAD_DIR/SHASUMS256.txt"
+
+          (
+              cd "$NODE_DOWNLOAD_DIR"
+
+              grep \
+                  " ${NODE_ARCHIVE}$" \
+                  SHASUMS256.txt \
+                  > SHASUMS256.node.txt
+
+              test -s SHASUMS256.node.txt || {
+                  echo "::error::Node checksum entry not found."
+                  exit 1
+              }
+
+              sha256sum \
+                  -c \
+                  SHASUMS256.node.txt
+          )
+
+          echo "Extracting Node on GitHub runner..."
+
+          tar \
+              -xzf "$NODE_DOWNLOAD_DIR/$NODE_ARCHIVE" \
+              -C "$NODE_EXTRACT_DIR"
+
+          NODE_SOURCE="$NODE_EXTRACT_DIR/$NODE_PACKAGE"
+
+          test -x "$NODE_SOURCE/bin/node" || {
+              echo "::error::Extracted Node binary is missing."
+              exit 1
+          }
+
+          ACTUAL_VERSION="$(
+              "$NODE_SOURCE/bin/node" \
+                  --version
+          )"
+
+          if [ "$ACTUAL_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
+              echo "::error::Runner Node archive version mismatch."
+              echo "Expected: v${NODE_RUNTIME_VERSION}"
+              echo "Actual:   $ACTUAL_VERSION"
+              exit 1
+          fi
+
+          echo "NODE_PACKAGE=$NODE_PACKAGE" >> "$GITHUB_ENV"
+          echo "NODE_SOURCE=$NODE_SOURCE" >> "$GITHUB_ENV"
+
+          echo "Runner Node: $ACTUAL_VERSION"
+          echo "Node runtime preparation PASS"
+
+
+      - name: Upload Anevix Node Runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REMOTE_RUNTIME_ROOT="${DEPLOY_BASE_PATH}/shared/runtime"
+          REMOTE_NODE_HOME="${REMOTE_RUNTIME_ROOT}/${NODE_PACKAGE}"
+
+          echo "Uploading extracted Node runtime without server-side archive extraction..."
+
+          ssh anevix-dev \
+            "RUNTIME_ROOT='$REMOTE_RUNTIME_ROOT' NODE_HOME='$REMOTE_NODE_HOME' bash -s" <<'REMOTE'
+
+          set -euo pipefail
+
+          mkdir -p "$RUNTIME_ROOT"
+          mkdir -p "$NODE_HOME"
+
+          REMOTE
+
+          # No -z compression:
+          # keep server-side CPU/RAM usage as low as possible.
+          rsync \
+              -a \
+              --delete \
+              --partial \
+              --timeout=180 \
+              --no-owner \
+              --no-group \
+              -e "ssh -F $HOME/.ssh/config" \
+              "$NODE_SOURCE/" \
+              "anevix-dev:${REMOTE_NODE_HOME}/"
+
+          ssh anevix-dev \
+            "RUNTIME_ROOT='$REMOTE_RUNTIME_ROOT' NODE_HOME='$REMOTE_NODE_HOME' NODE_RUNTIME_VERSION='$NODE_RUNTIME_VERSION' bash -s" <<'REMOTE'
+
+          set -euo pipefail
+
+          NODE_LINK="$RUNTIME_ROOT/node-current"
+          NODE_BIN="$NODE_HOME/bin/node"
+          NPM_CLI="$NODE_HOME/lib/node_modules/npm/bin/npm-cli.js"
+
+          test -x "$NODE_BIN" || {
+              echo "ERROR: Uploaded Node binary is missing."
+              exit 1
+          }
+
+          test -f "$NPM_CLI" || {
+              echo "ERROR: Uploaded npm CLI is missing."
+              exit 1
+          }
+
+          ACTUAL_NODE_VERSION="$(
+              "$NODE_BIN" --version
+          )"
+
+          ACTUAL_NPM_VERSION="$(
+              "$NODE_BIN" "$NPM_CLI" --version
+          )"
+
+          if [ "$ACTUAL_NODE_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
+              echo "ERROR: Uploaded Node version mismatch."
+              echo "Expected: v${NODE_RUNTIME_VERSION}"
+              echo "Actual:   $ACTUAL_NODE_VERSION"
+              exit 1
+          fi
+
+          ln -sfn \
+              "$NODE_HOME" \
+              "$NODE_LINK"
+
+          echo "Anevix Node: $ACTUAL_NODE_VERSION"
+          echo "Anevix npm:  $ACTUAL_NPM_VERSION"
+          echo "Anevix Node runtime upload PASS"
+
+          REMOTE
+
+
+      # ========================================================
+      # RUNTIME ENVIRONMENT
+      # ========================================================
+
+      - name: Sync Runtime Environment
+        shell: bash
+        env:
+          RUNTIME_MONGO_URL: ${{ secrets.MONGO_URL }}
+          RUNTIME_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          RUNTIME_EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          RUNTIME_EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          TEMP_ENV="$RUNNER_TEMP/anevix-runtime.env"
+          : > "$TEMP_ENV"
+
+          append_secret()
+          {
+              local KEY="$1"
+              local VALUE="$2"
+
+              if [ -n "$VALUE" ]; then
+                  printf '%s=%s\n' "$KEY" "$VALUE" >> "$TEMP_ENV"
+                  echo "${KEY}: configured"
+              else
+                  echo "::warning::${KEY} GitHub secret is missing; existing server value will be preserved."
+              fi
+          }
+
+          append_secret "MONGO_URL" "${RUNTIME_MONGO_URL:-}"
+          append_secret "JWT_SECRET" "${RUNTIME_JWT_SECRET:-}"
+          append_secret "EMAIL_USER" "${RUNTIME_EMAIL_USER:-}"
+          append_secret "EMAIL_PASSWORD" "${RUNTIME_EMAIL_PASSWORD:-}"
+
+          chmod 600 "$TEMP_ENV"
+
+          REMOTE_TEMP="/tmp/anevix-runtime-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.env"
+
+          scp \
+              -F "$HOME/.ssh/config" \
+              "$TEMP_ENV" \
+              "anevix-dev:${REMOTE_TEMP}"
+
+          ssh anevix-dev \
+            "BASE_PATH='$DEPLOY_BASE_PATH' NODE_PORT='$NODE_PORT' APP_URL_EXPECTED='$APP_URL' REMOTE_TEMP='$REMOTE_TEMP' bash -s" <<'REMOTE'
+
+          set -euo pipefail
+
+          SHARED_PATH="$BASE_PATH/shared"
+          ENV_FILE="$SHARED_PATH/.env"
+
+          mkdir -p "$SHARED_PATH"
+          touch "$ENV_FILE"
+
+          python3 - \
+              "$ENV_FILE" \
+              "$REMOTE_TEMP" \
+              "$NODE_PORT" \
+              "$APP_URL_EXPECTED" <<'PY'
+          from pathlib import Path
+          import sys
+
+          env_path = Path(sys.argv[1])
+          managed_path = Path(sys.argv[2])
+          node_port = sys.argv[3]
+          app_url = sys.argv[4]
+
+          updates = {
+              "NODE_ENV": "production",
+              "HOST": "127.0.0.1",
+              "PORT": node_port,
+              "APP_URL": app_url,
+          }
+
+          if managed_path.exists():
+              for raw in managed_path.read_text(encoding="utf-8").splitlines():
+                  if not raw or raw.startswith("#") or "=" not in raw:
+                      continue
+
+                  key, value = raw.split("=", 1)
+
+                  if key:
+                      updates[key] = value
+
+          existing_lines = (
+              env_path.read_text(encoding="utf-8").splitlines()
+              if env_path.exists()
+              else []
+          )
+
+          output = []
+          written = set()
+
+          for line in existing_lines:
+              stripped = line.strip()
+
+              if stripped and not stripped.startswith("#") and "=" in line:
+                  key = line.split("=", 1)[0].strip()
+
+                  if key in updates:
+                      if key not in written:
+                          output.append(f"{key}={updates[key]}")
+                          written.add(key)
+                      continue
+
+              output.append(line)
+
+          for key, value in updates.items():
+              if key not in written:
+                  output.append(f"{key}={value}")
+
+          env_path.write_text(
+              "\n".join(output).rstrip() + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          rm -f "$REMOTE_TEMP"
+          chmod 640 "$ENV_FILE"
+
+          echo "Runtime environment sync PASS"
+
+          for KEY in NODE_ENV HOST PORT APP_URL MONGO_URL JWT_SECRET EMAIL_USER EMAIL_PASSWORD
+          do
+              if grep -Eq "^${KEY}=.+$" "$ENV_FILE"; then
+                  echo "${KEY}: PRESENT"
+              else
+                  echo "${KEY}: NOT SET"
+              fi
+          done
+
+          REMOTE
+
+          rm -f "$TEMP_ENV"
 
 
       # ========================================================
@@ -269,6 +624,77 @@ jobs:
           CURRENT_PATH="$BASE_PATH/current"
           SHARED_PATH="$BASE_PATH/shared"
 
+          NODE_HOME="$SHARED_PATH/runtime/node-current"
+          NODE_BIN="$NODE_HOME/bin/node"
+          NPM_CLI="$NODE_HOME/lib/node_modules/npm/bin/npm-cli.js"
+
+          test -x "$NODE_BIN" || {
+              echo "ERROR: Isolated Anevix Node runtime is missing."
+              exit 1
+          }
+
+          test -f "$NPM_CLI" || {
+              echo "ERROR: Isolated Anevix npm CLI is missing."
+              exit 1
+          }
+
+          SYSTEM_PM2="$(
+              command -v pm2 \
+                  || true
+          )"
+
+          test -n "$SYSTEM_PM2" || {
+              echo "ERROR: PM2 command is missing on server."
+              exit 1
+          }
+
+          PM2_SCRIPT="$(
+              readlink -f "$SYSTEM_PM2"
+          )"
+
+          test -f "$PM2_SCRIPT" || {
+              echo "ERROR: PM2 script could not be resolved."
+              exit 1
+          }
+
+          # Keep Anevix PM2 completely separate from other apps/users.
+          export PM2_HOME="$HOME/.pm2-anevix"
+
+          mkdir -p \
+              "$PM2_HOME" \
+              "$SHARED_PATH/logs"
+
+          export PATH="$NODE_HOME/bin:$PATH"
+          hash -r
+
+          NODE_VERSION="$(
+              "$NODE_BIN" --version
+          )"
+
+          NPM_VERSION="$(
+              "$NODE_BIN" "$NPM_CLI" --version
+          )"
+
+          echo "Runtime Node: $NODE_VERSION"
+          echo "Runtime npm:  $NPM_VERSION"
+          echo "PM2 home:     $PM2_HOME"
+
+          case "$NODE_VERSION" in
+              v24.*)
+                  ;;
+              *)
+                  echo "ERROR: Deployment is not using Anevix Node 24."
+                  exit 1
+                  ;;
+          esac
+
+          pm2_anevix()
+          {
+              "$NODE_BIN" \
+                  "$PM2_SCRIPT" \
+                  "$@"
+          }
+
           cd "$CURRENT_PATH"
 
           test -f package.json || {
@@ -320,11 +746,11 @@ jobs:
           # Dependencies / optional build
           # ------------------------------------------------------
 
-          npm ci --include=dev
+          "$NODE_BIN" "$NPM_CLI" ci --include=dev
 
-          npm run build --if-present
+          "$NODE_BIN" "$NPM_CLI" run build --if-present
 
-          npm prune --omit=dev
+          "$NODE_BIN" "$NPM_CLI" prune --omit=dev
 
           echo "Dependencies PASS"
 
@@ -334,7 +760,7 @@ jobs:
           # ------------------------------------------------------
 
           ENTRY_FILE="$(
-              node -p '
+              "$NODE_BIN" -p '
               const p = require("./package.json");
               p.main || "server.js";
               '
@@ -388,62 +814,72 @@ jobs:
 
           # ------------------------------------------------------
           # PM2
+          #
+          # Do not use ecosystem JSON/startOrReload here.
+          # Direct process commands avoid PM2's _startJson path and
+          # the "config.deploy" TypeError seen with PM2 7.
           # ------------------------------------------------------
 
-          PM2_CONFIG="$CURRENT_PATH/ecosystem.deploy.cjs"
+          export NODE_ENV="production"
+          export HOST="127.0.0.1"
+          export PORT="$NODE_PORT"
 
-          cat > "$PM2_CONFIG" <<EOF
-          module.exports = {
-            apps: [
-              {
-                name: "${PM2_APP_NAME}",
-                cwd: "${CURRENT_PATH}",
-                script: "${ENTRY_FILE}",
-                instances: 1,
-                exec_mode: "fork",
-                autorestart: true,
-                watch: false,
-                time: true,
-                max_memory_restart: "500M",
-                env: {
-                  NODE_ENV: "production",
-                  HOST: "127.0.0.1",
-                  PORT: "${NODE_PORT}"
-                },
-                out_file: "${SHARED_PATH}/logs/pm2-out.log",
-                error_file: "${SHARED_PATH}/logs/pm2-error.log",
-                merge_logs: true
-              }
-            ]
-          };
-          EOF
+          if pm2_anevix describe "$PM2_APP_NAME" >/dev/null 2>&1; then
 
-          pm2 startOrReload \
-              "$PM2_CONFIG" \
-              --only "$PM2_APP_NAME" \
-              --update-env
+              echo "Restarting existing Anevix PM2 process..."
 
-          pm2 save
+              pm2_anevix restart \
+                  "$PM2_APP_NAME" \
+                  --update-env
+
+          else
+
+              if ss -ltn 2>/dev/null \
+                  | grep -q ":${NODE_PORT} "
+              then
+                  echo "ERROR: Port ${NODE_PORT} is already in use."
+                  echo "Refusing to stop an unknown process."
+                  exit 1
+              fi
+
+              echo "Starting Anevix PM2 process..."
+
+              pm2_anevix start \
+                  "$CURRENT_PATH/$ENTRY_FILE" \
+                  --name "$PM2_APP_NAME" \
+                  --cwd "$CURRENT_PATH" \
+                  --interpreter "$NODE_HOME/bin/node" \
+                  --time \
+                  --max-memory-restart 500M \
+                  --output "$SHARED_PATH/logs/pm2-out.log" \
+                  --error "$SHARED_PATH/logs/pm2-error.log"
+
+          fi
+
+          pm2_anevix save
 
           sleep 4
 
           PM2_PID="$(
-              pm2 pid "$PM2_APP_NAME" \
+              pm2_anevix pid "$PM2_APP_NAME" \
                   | tail -n 1 \
                   | tr -d '[:space:]'
           )"
 
           if ! [[ "$PM2_PID" =~ ^[1-9][0-9]*$ ]]; then
+
               echo "ERROR: PM2 process is not running."
 
-              pm2 logs "$PM2_APP_NAME" \
+              pm2_anevix logs "$PM2_APP_NAME" \
                   --lines 100 \
                   --nostream \
                   || true
 
               exit 1
+
           fi
 
+          echo "PM2 PID: $PM2_PID"
           echo "PM2 process PASS"
 
 
