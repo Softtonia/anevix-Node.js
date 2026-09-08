@@ -369,9 +369,24 @@ jobs:
 
           trap cleanup EXIT
 
-          if [ ! -x "$NODE_HOME/bin/node" ]; then
+          INSTALLED_VERSION=""
 
-              echo "Installing isolated Node ${NODE_RUNTIME_VERSION}..."
+          if [ -x "$NODE_HOME/bin/node" ]; then
+              INSTALLED_VERSION="$(
+                  "$NODE_HOME/bin/node" \
+                      --version \
+                      2>/dev/null \
+                      || true
+              )"
+          fi
+
+          if [ "$INSTALLED_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
+
+              if [ -n "$INSTALLED_VERSION" ]; then
+                  echo "Existing isolated Node is ${INSTALLED_VERSION}; replacing it."
+              else
+                  echo "Installing isolated Node ${NODE_RUNTIME_VERSION}..."
+              fi
 
               ACTUAL_SHA256="$(
                   sha256sum "$REMOTE_ARCHIVE" \
@@ -388,17 +403,32 @@ jobs:
               rm -rf "$TEMP_EXTRACT"
               mkdir -p "$TEMP_EXTRACT"
 
-              # gzip is intentionally used instead of xz to keep
-              # extraction memory usage low on this shared server.
               tar \
                   -xzf "$REMOTE_ARCHIVE" \
                   -C "$TEMP_EXTRACT"
 
-              test -x "$TEMP_EXTRACT/$NODE_PACKAGE/bin/node" || {
+              EXTRACTED_NODE="$TEMP_EXTRACT/$NODE_PACKAGE/bin/node"
+
+              test -x "$EXTRACTED_NODE" || {
                   echo "ERROR: Extracted Node binary is missing."
                   rm -rf "$TEMP_EXTRACT"
                   exit 1
               }
+
+              EXTRACTED_VERSION="$(
+                  "$EXTRACTED_NODE" \
+                      --version \
+                      2>/dev/null \
+                      || true
+              )"
+
+              if [ "$EXTRACTED_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
+                  echo "ERROR: Extracted Node version mismatch."
+                  echo "Expected: v${NODE_RUNTIME_VERSION}"
+                  echo "Actual:   ${EXTRACTED_VERSION:-UNAVAILABLE}"
+                  rm -rf "$TEMP_EXTRACT"
+                  exit 1
+              fi
 
               rm -rf "$NODE_HOME"
 
@@ -410,8 +440,7 @@ jobs:
 
           else
 
-              echo "Node ${NODE_RUNTIME_VERSION} already installed."
-              echo "Download will only be verified/cleaned."
+              echo "Node ${NODE_RUNTIME_VERSION} already installed correctly."
 
           fi
 
@@ -419,12 +448,43 @@ jobs:
               "$NODE_HOME" \
               "$NODE_LINK"
 
+          NODE_BIN="$NODE_LINK/bin/node"
+          NPM_CLI="$NODE_LINK/lib/node_modules/npm/bin/npm-cli.js"
+
+          test -x "$NODE_BIN" || {
+              echo "ERROR: Isolated Node binary is not executable."
+              exit 1
+          }
+
+          test -f "$NPM_CLI" || {
+              echo "ERROR: Isolated npm CLI is missing."
+              exit 1
+          }
+
+          # Use absolute binaries first. PATH is updated only for
+          # lifecycle scripts spawned later by npm.
+          ACTUAL_NODE_VERSION="$(
+              "$NODE_BIN" --version
+          )"
+
+          ACTUAL_NPM_VERSION="$(
+              "$NODE_BIN" "$NPM_CLI" --version
+          )"
+
+          echo "Anevix Node: $ACTUAL_NODE_VERSION"
+          echo "Anevix npm:  $ACTUAL_NPM_VERSION"
+
+          if [ "$ACTUAL_NODE_VERSION" != "v${NODE_RUNTIME_VERSION}" ]; then
+              echo "ERROR: Anevix Node version mismatch."
+              echo "Expected: v${NODE_RUNTIME_VERSION}"
+              echo "Actual:   $ACTUAL_NODE_VERSION"
+              exit 1
+          fi
+
           export PATH="$NODE_LINK/bin:$PATH"
+          hash -r
 
-          echo "Anevix Node: $(node --version)"
-          echo "Anevix npm:  $(npm --version)"
-
-          node - <<'NODE'
+          "$NODE_BIN" - <<'NODE'
           const [major, minor] =
               process.versions.node
                   .split(".")
@@ -636,22 +696,75 @@ jobs:
           SHARED_PATH="$BASE_PATH/shared"
 
           NODE_HOME="$SHARED_PATH/runtime/node-current"
+          NODE_BIN="$NODE_HOME/bin/node"
+          NPM_CLI="$NODE_HOME/lib/node_modules/npm/bin/npm-cli.js"
 
-          test -x "$NODE_HOME/bin/node" || {
+          test -x "$NODE_BIN" || {
               echo "ERROR: Isolated Anevix Node runtime is missing."
               exit 1
           }
 
-          export PATH="$NODE_HOME/bin:$PATH"
+          test -f "$NPM_CLI" || {
+              echo "ERROR: Isolated Anevix npm CLI is missing."
+              exit 1
+          }
+
+          SYSTEM_PM2="$(
+              command -v pm2 \
+                  || true
+          )"
+
+          test -n "$SYSTEM_PM2" || {
+              echo "ERROR: PM2 command is missing on server."
+              exit 1
+          }
+
+          PM2_SCRIPT="$(
+              readlink -f "$SYSTEM_PM2"
+          )"
+
+          test -f "$PM2_SCRIPT" || {
+              echo "ERROR: PM2 script could not be resolved."
+              exit 1
+          }
 
           # Keep Anevix PM2 completely separate from other apps/users.
           export PM2_HOME="$HOME/.pm2-anevix"
 
-          mkdir -p               "$PM2_HOME"               "$SHARED_PATH/logs"
+          mkdir -p \
+              "$PM2_HOME" \
+              "$SHARED_PATH/logs"
 
-          echo "Runtime Node: $(node --version)"
-          echo "Runtime npm:  $(npm --version)"
+          export PATH="$NODE_HOME/bin:$PATH"
+          hash -r
+
+          NODE_VERSION="$(
+              "$NODE_BIN" --version
+          )"
+
+          NPM_VERSION="$(
+              "$NODE_BIN" "$NPM_CLI" --version
+          )"
+
+          echo "Runtime Node: $NODE_VERSION"
+          echo "Runtime npm:  $NPM_VERSION"
           echo "PM2 home:     $PM2_HOME"
+
+          case "$NODE_VERSION" in
+              v24.*)
+                  ;;
+              *)
+                  echo "ERROR: Deployment is not using Anevix Node 24."
+                  exit 1
+                  ;;
+          esac
+
+          pm2_anevix()
+          {
+              "$NODE_BIN" \
+                  "$PM2_SCRIPT" \
+                  "$@"
+          }
 
           cd "$CURRENT_PATH"
 
@@ -704,11 +817,11 @@ jobs:
           # Dependencies / optional build
           # ------------------------------------------------------
 
-          npm ci --include=dev
+          "$NODE_BIN" "$NPM_CLI" ci --include=dev
 
-          npm run build --if-present
+          "$NODE_BIN" "$NPM_CLI" run build --if-present
 
-          npm prune --omit=dev
+          "$NODE_BIN" "$NPM_CLI" prune --omit=dev
 
           echo "Dependencies PASS"
 
@@ -718,7 +831,7 @@ jobs:
           # ------------------------------------------------------
 
           ENTRY_FILE="$(
-              node -p '
+              "$NODE_BIN" -p '
               const p = require("./package.json");
               p.main || "server.js";
               '
@@ -782,11 +895,11 @@ jobs:
           export HOST="127.0.0.1"
           export PORT="$NODE_PORT"
 
-          if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
+          if pm2_anevix describe "$PM2_APP_NAME" >/dev/null 2>&1; then
 
               echo "Restarting existing Anevix PM2 process..."
 
-              pm2 restart \
+              pm2_anevix restart \
                   "$PM2_APP_NAME" \
                   --update-env
 
@@ -802,7 +915,7 @@ jobs:
 
               echo "Starting Anevix PM2 process..."
 
-              pm2 start \
+              pm2_anevix start \
                   "$CURRENT_PATH/$ENTRY_FILE" \
                   --name "$PM2_APP_NAME" \
                   --cwd "$CURRENT_PATH" \
@@ -814,12 +927,12 @@ jobs:
 
           fi
 
-          pm2 save
+          pm2_anevix save
 
           sleep 4
 
           PM2_PID="$(
-              pm2 pid "$PM2_APP_NAME" \
+              pm2_anevix pid "$PM2_APP_NAME" \
                   | tail -n 1 \
                   | tr -d '[:space:]'
           )"
@@ -828,7 +941,7 @@ jobs:
 
               echo "ERROR: PM2 process is not running."
 
-              pm2 logs "$PM2_APP_NAME" \
+              pm2_anevix logs "$PM2_APP_NAME" \
                   --lines 100 \
                   --nostream \
                   || true
