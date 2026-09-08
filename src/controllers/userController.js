@@ -12,6 +12,7 @@ const generateOTP = require("../utils/otp");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const jwt = require("jsonwebtoken");
+const { createNotification } = require("../services/notificationService");
 
 const addUser = async (req, res) => {
   try {
@@ -54,19 +55,29 @@ const addUser = async (req, res) => {
 
 const signupUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, phoneNumber, password, role } = req.body;
-    
-    let requestedRoleSlug = role || req.query.ref || req.query.role || 'b2b-customer';
-    
-    if (requestedRoleSlug.includes('seller') || requestedRoleSlug.includes('supplier') || requestedRoleSlug === 'b2c-seller') {
-        requestedRoleSlug = 'b2c-seller';
-    } else if (requestedRoleSlug.includes('customer') || requestedRoleSlug === 'b2b-customer') {
-        requestedRoleSlug = 'b2b-customer';
+    const { firstName, lastName, email, phoneNumber, password, role } =
+      req.body;
+
+    let requestedRoleSlug =
+      role || req.query.ref || req.query.role || "b2b-customer";
+
+    if (
+      requestedRoleSlug.includes("seller") ||
+      requestedRoleSlug.includes("supplier") ||
+      requestedRoleSlug === "b2c-seller"
+    ) {
+      requestedRoleSlug = "b2c-seller";
+    } else if (
+      requestedRoleSlug.includes("customer") ||
+      requestedRoleSlug === "b2b-customer"
+    ) {
+      requestedRoleSlug = "b2b-customer";
     }
 
     if (!firstName || !lastName || !password || (!email && !phoneNumber)) {
       return res.status(400).json({
-        message: "First name, last name, password and email or phone number are required",
+        message:
+          "First name, last name, password and email or phone number are required",
       });
     }
 
@@ -99,23 +110,29 @@ const signupUser = async (req, res) => {
     let verificationTypes = [];
 
     if (email) {
-      const emailOtpHash = crypto.createHash("sha256").update(emailOtp).digest("hex");
+      const emailOtpHash = crypto
+        .createHash("sha256")
+        .update(emailOtp)
+        .digest("hex");
       newUser.emailOtpHash = emailOtpHash;
       newUser.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
       await sendEmail(
         newUser.email,
         "Anevix Email Verification OTP",
-        `Your Anevix verification OTP is: ${emailOtp}. It is valid for 10 minutes.`
+        `Your Anevix verification OTP is: ${emailOtp}. It is valid for 10 minutes.`,
       );
       verificationTypes.push("email");
     }
-    
+
     if (phoneNumber) {
-      const mobileOtpHash = crypto.createHash("sha256").update(mobileOtp).digest("hex");
+      const mobileOtpHash = crypto
+        .createHash("sha256")
+        .update(mobileOtp)
+        .digest("hex");
       newUser.mobileOtpHash = mobileOtpHash;
       newUser.mobileOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-      
+
       // Not sending SMS right now, just using dummy OTP
       verificationTypes.push("mobile");
     }
@@ -125,21 +142,24 @@ const signupUser = async (req, res) => {
     // Assign role
     try {
       let assignedRole = await Role.findOne({ slug: requestedRoleSlug });
-      
+
       // If the requested role doesn't exist yet, auto-create it safely
       if (!assignedRole) {
         const lastRole = await Role.findOne().sort({ id: -1 });
         const newRoleId = lastRole ? lastRole.id + 1 : 2;
-        
+
         // Capitalize the first letter for the name
-        const roleName = requestedRoleSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        
+        const roleName = requestedRoleSlug
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+
         assignedRole = await Role.create({
           id: newRoleId,
           name: roleName,
           slug: requestedRoleSlug,
-          guard: requestedRoleSlug === 'b2b-customer' ? 'app' : 'web', // typically customers use app, sellers use web
-          is_default: requestedRoleSlug === 'b2b-customer'
+          guard: requestedRoleSlug === "b2b-customer" ? "app" : "web", // typically customers use app, sellers use web
+          is_default: requestedRoleSlug === "b2b-customer",
         });
       }
 
@@ -150,13 +170,12 @@ const signupUser = async (req, res) => {
         await RoleHasUser.create({
           id: nextId,
           role_id: assignedRole.id,
-          user_id: newUser._id
+          user_id: newUser._id,
         });
       }
     } catch (roleError) {
       console.error("Error assigning role during signup:", roleError);
     }
-
 
     return res.status(201).json({
       success: true,
@@ -210,6 +229,8 @@ const verifyEmailOTP = async (req, res) => {
       });
     }
 
+    const wasAccountVerified = user.isAccountVerified;
+
     user.isEmailVerified = true;
     user.isAccountVerified = true;
     user.status = "active";
@@ -218,6 +239,20 @@ const verifyEmailOTP = async (req, res) => {
     user.emailOtpExpiresAt = null;
 
     await user.save();
+
+    if (!wasAccountVerified) {
+      try {
+        await createNotification({
+          user: user._id,
+          title: "Welcome to Anevix",
+          message: "Your account has been verified successfully. Welcome to Anevix!",
+          type: "WELCOME",
+          data: {},
+        });
+      } catch (err) {
+        console.error("Failed to create WELCOME notification:", err);
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -264,10 +299,7 @@ const resendEmailOTP = async (req, res) => {
 
     const otp = generateOTP();
 
-    const otpHash = crypto
-      .createHash("sha256")
-      .update(otp)
-      .digest("hex");
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     user.emailOtpHash = otpHash;
     user.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -323,6 +355,8 @@ const verifyMobileOTP = async (req, res) => {
       });
     }
 
+    const wasAccountVerified = user.isAccountVerified;
+
     user.isMobileVerified = true;
     user.isAccountVerified = true;
     user.status = "active";
@@ -331,6 +365,20 @@ const verifyMobileOTP = async (req, res) => {
     user.mobileOtpExpiresAt = null;
 
     await user.save();
+
+    if (!wasAccountVerified) {
+      try {
+        await createNotification({
+          user: user._id,
+          title: "Welcome to Anevix",
+          message: "Your account has been verified successfully. Welcome to Anevix!",
+          type: "WELCOME",
+          data: {},
+        });
+      } catch (err) {
+        console.error("Failed to create WELCOME notification:", err);
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -380,7 +428,7 @@ const loginUser = async (req, res) => {
     }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+      expiresIn: "7d",
     });
 
     await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
@@ -409,7 +457,7 @@ const loginUser = async (req, res) => {
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "-password -emailOtpHash -emailOtpExpiresAt -mobileOtpHash -mobileOtpExpiresAt -passwordResetTokenHash -passwordResetExpiresAt -__v"
+      "-password -emailOtpHash -emailOtpExpiresAt -mobileOtpHash -mobileOtpExpiresAt -passwordResetTokenHash -passwordResetExpiresAt -__v",
     );
 
     if (!user) {
@@ -425,19 +473,19 @@ const getUserProfile = async (req, res) => {
       wishlist,
       savedPaymentMethods,
       reviews,
-      notifications
+      notifications,
     ] = await Promise.all([
       Address.find({ user: user._id }),
       Order.find({ user: user._id }).sort({ createdAt: -1 }),
-      Wishlist.find({ user: user._id }).populate('product'), // populating product if schema exists
+      Wishlist.find({ user: user._id }).populate("product"), // populating product if schema exists
       SavedPaymentMethod.find({ user: user._id }),
       Review.find({ user: user._id }),
-      Notification.find({ user: user._id }).sort({ createdAt: -1 })
+      Notification.find({ user: user._id }).sort({ createdAt: -1 }),
     ]);
 
     // Separate default address from the rest
-    const defaultAddress = addresses.find(addr => addr.isDefault) || null;
-    const otherAddresses = addresses.filter(addr => !addr.isDefault);
+    const defaultAddress = addresses.find((addr) => addr.isDefault) || null;
+    const otherAddresses = addresses.filter((addr) => !addr.isDefault);
 
     return res.status(200).json({
       success: true,
@@ -449,7 +497,7 @@ const getUserProfile = async (req, res) => {
         wishlist,
         savedPaymentMethods,
         reviews,
-        notifications
+        notifications,
       },
     });
   } catch (error) {
@@ -505,7 +553,8 @@ const deleteUser = async (req, res) => {
 const editUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, email, phoneNumber, password, status } = req.body;
+    const { firstName, lastName, email, phoneNumber, password, status } =
+      req.body;
 
     const user = await User.findById(id);
 
@@ -565,7 +614,10 @@ const forgotPassword = async (req, res) => {
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
     user.passwordResetTokenHash = resetTokenHash;
     user.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
@@ -575,7 +627,7 @@ const forgotPassword = async (req, res) => {
     await sendEmail(
       user.email,
       "Anevix Password Reset",
-      `Your password reset token is: ${resetToken}. It is valid for 15 minutes.`
+      `Your password reset token is: ${resetToken}. It is valid for 15 minutes.`,
     );
 
     return res.status(200).json({
@@ -597,7 +649,10 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    const resetTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
     const user = await User.findOne({
       passwordResetTokenHash: resetTokenHash,
@@ -619,9 +674,238 @@ const resetPassword = async (req, res) => {
 
     await user.save();
 
+    try {
+      await createNotification({
+        user: user._id,
+        title: "Password Changed",
+        message: "Your password has been changed successfully.",
+        type: "PASSWORD_CHANGED",
+        data: {},
+      });
+    } catch (err) {
+      console.error("Failed to create PASSWORD_CHANGED notification:", err);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Password reset successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const updateUnverifiedContact = async (req, res) => {
+  try {
+    const { userId, email, phoneNumber } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    if (!email && !phoneNumber) {
+      return res
+        .status(400)
+        .json({ message: "Please provide an email or phone number to update" });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isAccountVerified) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Account is already verified. Cannot update contact details here.",
+        });
+    }
+
+    let verificationTypes = [];
+    const dummyMobileOtp = "123456";
+
+    if (email) {
+      const lowerEmail = email.toLowerCase().trim();
+      const existingUser = await User.findOne({
+        email: lowerEmail,
+        _id: { $ne: userId },
+      });
+      if (existingUser) {
+        return res
+          .status(400)
+          .json({ message: "Email is already in use by another account" });
+      }
+
+      user.email = lowerEmail;
+
+      const emailOtp = generateOTP();
+      user.emailOtpHash = crypto
+        .createHash("sha256")
+        .update(emailOtp)
+        .digest("hex");
+      user.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      await sendEmail(
+        user.email,
+        "Anevix Email Verification OTP",
+        `Your updated Anevix verification OTP is: ${emailOtp}. It is valid for 10 minutes.`,
+      );
+      verificationTypes.push("email");
+    }
+
+    if (phoneNumber) {
+      const trimPhone = phoneNumber.trim();
+      const existingUser = await User.findOne({
+        phoneNumber: trimPhone,
+        _id: { $ne: userId },
+      });
+      if (existingUser) {
+        return res
+          .status(400)
+          .json({
+            message: "Phone number is already in use by another account",
+          });
+      }
+
+      user.phoneNumber = trimPhone;
+      user.mobileOtpHash = crypto
+        .createHash("sha256")
+        .update(dummyMobileOtp)
+        .digest("hex");
+      user.mobileOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      verificationTypes.push("mobile");
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Contact details updated successfully. New OTP sent.",
+      verificationTypes,
+      dummyMobileOtp: phoneNumber ? dummyMobileOtp : undefined,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const addOrder = async (req, res) => {
+  try {
+    const { totalAmount, status } = req.body;
+    const userId = req.user.id;
+
+    if (totalAmount === undefined) {
+      return res.status(400).json({ message: "Total amount is required" });
+    }
+
+    const newOrder = await Order.create({
+      user: userId,
+      totalAmount,
+      status: status || "Pending",
+    });
+
+    try {
+      await createNotification({
+        user: userId,
+        title: "Order Placed",
+        message: "Your order has been placed successfully.",
+        type: "ORDER_PLACED",
+        data: { orderId: newOrder._id },
+      });
+    } catch (err) {
+      console.error("Failed to create ORDER_PLACED notification:", err);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Order added successfully",
+      order: newOrder,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const addToWishlist = async (req, res) => {
+  try {
+    const { productId } = req.body;
+    const userId = req.user.id;
+
+    if (!productId) {
+      return res.status(400).json({ message: "Product ID is required" });
+    }
+
+    // Check if already in wishlist
+    const existingItem = await Wishlist.findOne({
+      user: userId,
+      product: productId,
+    });
+    if (existingItem) {
+      return res.status(400).json({ message: "Product already in wishlist" });
+    }
+
+    const newWishlistItem = await Wishlist.create({
+      user: userId,
+      product: productId,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Added to wishlist successfully",
+      wishlistItem: newWishlistItem,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const addSavedPaymentMethod = async (req, res) => {
+  try {
+    const { provider, last4, isDefault } = req.body;
+    const userId = req.user.id;
+
+    if (!provider || !last4) {
+      return res.status(400).json({ message: "Provider and last4 are required" });
+    }
+
+    if (isDefault) {
+      // If setting as default, remove default from existing ones
+      await SavedPaymentMethod.updateMany(
+        { user: userId },
+        { $set: { isDefault: false } }
+      );
+    }
+
+    const newPaymentMethod = await SavedPaymentMethod.create({
+      user: userId,
+      provider,
+      last4,
+      isDefault: isDefault || false,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Payment method saved successfully",
+      paymentMethod: newPaymentMethod,
     });
   } catch (error) {
     return res.status(500).json({
@@ -645,4 +929,8 @@ module.exports = {
   editUser,
   forgotPassword,
   resetPassword,
+  updateUnverifiedContact,
+  addOrder,
+  addToWishlist,
+  addSavedPaymentMethod,
 };

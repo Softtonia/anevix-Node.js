@@ -17,6 +17,10 @@ const {
   editUser,
   forgotPassword,
   resetPassword,
+  updateUnverifiedContact,
+  addOrder,
+  addToWishlist,
+  addSavedPaymentMethod,
 } = require("../controllers/userController");
 
 router.post("/add", adminAuth, addUser);
@@ -25,6 +29,9 @@ router.put("/edit/:id", adminAuth, editUser);
 
 // B2C Customer Signup
 router.post("/signup", signupUser);
+
+// Update Unverified Contact Details
+router.post("/update-unverified-contact", updateUnverifiedContact);
 
 // Verify Email OTP
 router.post("/verify-email", verifyEmailOTP);
@@ -43,5 +50,12 @@ router.get("/profile", b2bCustomerAuth, getUserProfile);
 
 // Logout User
 router.post("/logout", b2bCustomerAuth, logoutUser);
+
+// Order and Wishlist
+router.post("/order", b2bCustomerAuth, addOrder);
+router.post("/wishlist", b2bCustomerAuth, addToWishlist);
+
+// Saved Payment Methods
+router.post("/payment-method", b2bCustomerAuth, addSavedPaymentMethod);
 
 module.exports = router;
