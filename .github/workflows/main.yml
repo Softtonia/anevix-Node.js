@@ -33,8 +33,8 @@ env:
   # POSTMAN
   # ============================================================
   POSTMAN_WORKSPACE_ID: "42f2b257-2d72-44e6-a4dc-0b8ba613f1a2"
-  POSTMAN_COLLECTION_ID: "40673074-219bffd2-5145-42ed-8329-1311ac7411da"
-  POSTMAN_ENVIRONMENT_ID: "40673074-bc557625-2851-431f-bb44-9514a657712b"
+  POSTMAN_COLLECTION_ID: "40673074-1000380d-00e1-4656-a90f-f6f3fee8ee91"
+  POSTMAN_ENVIRONMENT_ID: "40673074-411c4832-fa02-400e-a2fb-c027dc6525d0"
 
 jobs:
 
@@ -1039,7 +1039,7 @@ jobs:
       POSTMAN_API_BASE: "https://api.getpostman.com"
 
       POSTMAN_COLLECTION_FILE: "docs/postman/Anevix.postman_collection.json"
-      POSTMAN_ENVIRONMENT_FILE: "docs/postman/Anevix.postman_environment.json"
+      POSTMAN_ENVIRONMENT_FILE: "docs/Anevix.postman_environment.json"
 
     steps:
 
