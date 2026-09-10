@@ -1038,8 +1038,8 @@ jobs:
       POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
       POSTMAN_API_BASE: "https://api.getpostman.com"
 
-      POSTMAN_COLLECTION_FILE: "docs/postman/Anevix.postman_collection.json"
-      POSTMAN_ENVIRONMENT_FILE: "docs/postman/Anevix.postman_environment.json"
+      POSTMAN_COLLECTION_FILE: "docs/Anevix-Postman-Collection.json"
+      POSTMAN_ENVIRONMENT_FILE: "docs/Anevix-Postman-Environment.json"
 
     steps:
 
