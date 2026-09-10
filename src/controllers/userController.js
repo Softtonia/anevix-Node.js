@@ -7,6 +7,7 @@ const Wishlist = require("../models/Wishlist");
 const SavedPaymentMethod = require("../models/SavedPaymentMethod");
 const Review = require("../models/Review");
 const Notification = require("../models/Notification");
+const SellerProfile = require("../models/SellerProfile");
 const bcrypt = require("bcryptjs");
 const generateOTP = require("../utils/otp");
 const crypto = require("crypto");
@@ -53,135 +54,114 @@ const addUser = async (req, res) => {
   }
 };
 
-const signupUser = async (req, res) => {
+const getValidatedRoles = async (roleSlugs) => {
+  const roles = await Role.find({ slug: { $in: roleSlugs } });
+  if (roles.length !== roleSlugs.length) {
+    const foundSlugs = roles.map((r) => r.slug);
+    const missing = roleSlugs.filter((s) => !foundSlugs.includes(s));
+    throw new Error(`Invalid roles requested: ${missing.join(", ")}`);
+  }
+  return roles;
+};
+
+const createUserAccount = async (firstName, lastName, email, phoneNumber, password) => {
+  if (!firstName || !lastName || !password || (!email && !phoneNumber)) {
+    throw new Error("First name, last name, password and email or phone number are required");
+  }
+
+  const existingUser = await User.findOne({
+    $or: [
+      ...(email ? [{ email: email.toLowerCase().trim() }] : []),
+      ...(phoneNumber ? [{ phoneNumber: phoneNumber.trim() }] : []),
+    ],
+  });
+
+  if (existingUser) {
+    throw new Error("User already exists with this email or mobile");
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const newUser = await User.create({
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
+    email: email ? email.toLowerCase().trim() : undefined,
+    phoneNumber: phoneNumber ? phoneNumber.trim() : undefined,
+    password: hashedPassword,
+  });
+
+  const emailOtp = generateOTP();
+  const mobileOtp = "123456"; // Dummy OTP for now
+  let verificationTypes = [];
+
+  if (email) {
+    const emailOtpHash = crypto
+      .createHash("sha256")
+      .update(emailOtp)
+      .digest("hex");
+    newUser.emailOtpHash = emailOtpHash;
+    newUser.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await sendEmail(
+      newUser.email,
+      "Anevix Email Verification OTP",
+      `Your Anevix verification OTP is: ${emailOtp}. It is valid for 10 minutes.`,
+    );
+    verificationTypes.push("email");
+  }
+
+  if (phoneNumber) {
+    const mobileOtpHash = crypto
+      .createHash("sha256")
+      .update(mobileOtp)
+      .digest("hex");
+    newUser.mobileOtpHash = mobileOtpHash;
+    newUser.mobileOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    verificationTypes.push("mobile");
+  }
+
+  await newUser.save();
+
+  return { newUser, verificationTypes, dummyMobileOtp: phoneNumber ? mobileOtp : undefined };
+};
+
+const assignRolesToUser = async (userId, roles) => {
+  for (const assignedRole of roles) {
+    const existingPivot = await RoleHasUser.findOne({
+      role_id: assignedRole.id,
+      user_id: userId,
+    });
+    if (!existingPivot) {
+      const lastPivot = await RoleHasUser.findOne().sort({ id: -1 });
+      const nextId = lastPivot ? lastPivot.id + 1 : 1;
+      await RoleHasUser.create({
+        id: nextId,
+        role_id: assignedRole.id,
+        user_id: userId,
+      });
+    }
+  }
+};
+
+const registerCustomer = async (req, res) => {
   try {
-    const { firstName, lastName, email, phoneNumber, password, role } =
-      req.body;
-
-    let requestedRoleSlug =
-      role || req.query.ref || req.query.role || "b2b-customer";
-
-    if (
-      requestedRoleSlug.includes("seller") ||
-      requestedRoleSlug.includes("supplier") ||
-      requestedRoleSlug === "b2c-seller"
-    ) {
-      requestedRoleSlug = "b2c-seller";
-    } else if (
-      requestedRoleSlug.includes("customer") ||
-      requestedRoleSlug === "b2b-customer"
-    ) {
-      requestedRoleSlug = "b2b-customer";
+    const { firstName, lastName, email, phoneNumber, password, role, roles } = req.body;
+    
+    if (role || roles) {
+      return res.status(400).json({ success: false, message: "Customer registration does not accept role selection" });
     }
 
-    if (!firstName || !lastName || !password || (!email && !phoneNumber)) {
-      return res.status(400).json({
-        message:
-          "First name, last name, password and email or phone number are required",
-      });
-    }
-
-    const existingUser = await User.findOne({
-      $or: [
-        ...(email ? [{ email: email.toLowerCase().trim() }] : []),
-        ...(phoneNumber ? [{ phoneNumber: phoneNumber.trim() }] : []),
-      ],
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists with this email or mobile",
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await User.create({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email ? email.toLowerCase().trim() : undefined,
-      phoneNumber: phoneNumber ? phoneNumber.trim() : undefined,
-      password: hashedPassword,
-    });
-
-    const emailOtp = generateOTP();
-    const mobileOtp = "123456"; // Dummy OTP for now
-
-    let verificationTypes = [];
-
-    if (email) {
-      const emailOtpHash = crypto
-        .createHash("sha256")
-        .update(emailOtp)
-        .digest("hex");
-      newUser.emailOtpHash = emailOtpHash;
-      newUser.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-      await sendEmail(
-        newUser.email,
-        "Anevix Email Verification OTP",
-        `Your Anevix verification OTP is: ${emailOtp}. It is valid for 10 minutes.`,
-      );
-      verificationTypes.push("email");
-    }
-
-    if (phoneNumber) {
-      const mobileOtpHash = crypto
-        .createHash("sha256")
-        .update(mobileOtp)
-        .digest("hex");
-      newUser.mobileOtpHash = mobileOtpHash;
-      newUser.mobileOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-      // Not sending SMS right now, just using dummy OTP
-      verificationTypes.push("mobile");
-    }
-
-    await newUser.save();
-
-    // Assign role
-    try {
-      let assignedRole = await Role.findOne({ slug: requestedRoleSlug });
-
-      // If the requested role doesn't exist yet, auto-create it safely
-      if (!assignedRole) {
-        const lastRole = await Role.findOne().sort({ id: -1 });
-        const newRoleId = lastRole ? lastRole.id + 1 : 2;
-
-        // Capitalize the first letter for the name
-        const roleName = requestedRoleSlug
-          .split("-")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ");
-
-        assignedRole = await Role.create({
-          id: newRoleId,
-          name: roleName,
-          slug: requestedRoleSlug,
-          guard: requestedRoleSlug === "b2b-customer" ? "app" : "web", // typically customers use app, sellers use web
-          is_default: requestedRoleSlug === "b2b-customer",
-        });
-      }
-
-      if (assignedRole) {
-        const lastPivot = await RoleHasUser.findOne().sort({ id: -1 });
-        const nextId = lastPivot ? lastPivot.id + 1 : 1;
-
-        await RoleHasUser.create({
-          id: nextId,
-          role_id: assignedRole.id,
-          user_id: newUser._id,
-        });
-      }
-    } catch (roleError) {
-      console.error("Error assigning role during signup:", roleError);
-    }
+    const validatedRoles = await getValidatedRoles(["b2c-customer"]);
+    
+    const { newUser, verificationTypes, dummyMobileOtp } = await createUserAccount(firstName, lastName, email, phoneNumber, password);
+    
+    await assignRolesToUser(newUser._id, validatedRoles);
 
     return res.status(201).json({
       success: true,
-      message: "Signup successful",
+      message: "Customer signup successful",
       verificationTypes,
-      dummyMobileOtp: phoneNumber ? mobileOtp : undefined,
+      dummyMobileOtp,
       user: {
         id: newUser._id,
         firstName: newUser.firstName,
@@ -191,13 +171,73 @@ const signupUser = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({
+    const status = error.message.includes("User already exists") || error.message.includes("are required") || error.message.includes("Invalid roles") ? 400 : 500;
+    return res.status(status).json({
       success: false,
-      message: "Something went wrong",
-      error: error.message,
+      message: error.message || "Something went wrong",
     });
   }
 };
+
+const registerBusiness = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phoneNumber, password, roles } = req.body;
+    
+    if (!roles || !Array.isArray(roles) || roles.length === 0) {
+      return res.status(400).json({ success: false, message: "Business registration requires at least one valid role" });
+    }
+
+    const allowedRoles = ["b2c-seller", "b2b-buyer", "b2b-seller"];
+    const hasInvalidRole = roles.some(r => !allowedRoles.includes(r));
+    if (hasInvalidRole) {
+      return res.status(400).json({ success: false, message: "Invalid roles provided for business registration" });
+    }
+
+    const validatedRoles = await getValidatedRoles(roles);
+    
+    const { newUser, verificationTypes, dummyMobileOtp } = await createUserAccount(firstName, lastName, email, phoneNumber, password);
+    
+    await assignRolesToUser(newUser._id, validatedRoles);
+
+    return res.status(201).json({
+      success: true,
+      message: "Business signup successful",
+      verificationTypes,
+      dummyMobileOtp,
+      user: {
+        id: newUser._id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        phoneNumber: newUser.phoneNumber,
+      },
+    });
+  } catch (error) {
+    const status = error.message.includes("Invalid roles") || error.message.includes("User already exists") || error.message.includes("are required") ? 400 : 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Something went wrong",
+    });
+  }
+};
+
+const initializeSellerProfileIfApplicable = async (userId) => {
+  try {
+    const sellerRole = await Role.findOne({ slug: "b2c-seller" });
+    if (!sellerRole) return;
+    const hasRole = await RoleHasUser.findOne({ role_id: sellerRole.id, user_id: userId });
+    if (hasRole) {
+      await SellerProfile.findOneAndUpdate(
+        { user: userId },
+        { user: userId },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+    }
+  } catch (err) {
+    console.error("Failed to initialize seller profile:", err);
+  }
+};
+
 
 const verifyEmailOTP = async (req, res) => {
   try {
@@ -239,6 +279,8 @@ const verifyEmailOTP = async (req, res) => {
     user.emailOtpExpiresAt = null;
 
     await user.save();
+
+    await initializeSellerProfileIfApplicable(user._id);
 
     if (!wasAccountVerified) {
       try {
@@ -366,6 +408,8 @@ const verifyMobileOTP = async (req, res) => {
 
     await user.save();
 
+    await initializeSellerProfileIfApplicable(user._id);
+
     if (!wasAccountVerified) {
       try {
         await createNotification({
@@ -393,44 +437,35 @@ const verifyMobileOTP = async (req, res) => {
   }
 };
 
-const loginUser = async (req, res) => {
+const authenticateUser = async (email, password) => {
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  if (!user) throw new Error("Invalid email or password");
+  
+  if (user.status !== "active") throw new Error("Account is not active");
+  if (!user.isEmailVerified) throw new Error("Please verify your email first");
+  
+  const isPasswordMatch = await bcrypt.compare(password, user.password);
+  if (!isPasswordMatch) throw new Error("Invalid email or password");
+
+  return user;
+};
+
+const loginCustomer = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const user = await authenticateUser(email, password);
 
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+    // Fetch user roles
+    const rolePivots = await RoleHasUser.find({ user_id: user._id });
+    const roleIds = rolePivots.map(p => p.role_id);
+    const roles = await Role.find({ id: { $in: roleIds } });
+    const roleSlugs = roles.map(r => r.slug);
 
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
+    if (!roleSlugs.includes("b2c-customer")) {
+      return res.status(403).json({ success: false, message: "Unauthorized access for customer portal" });
     }
 
-    if (user.status !== "active") {
-      return res.status(403).json({
-        message: "Account is not active",
-      });
-    }
-
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        message: "Please verify your email first",
-      });
-    }
-
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordMatch) {
-      return res.status(401).json({
-        message: "Invalid email or password",
-      });
-    }
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
     await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
 
     return res.status(200).json({
@@ -446,10 +481,50 @@ const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({
+    const status = error.message.includes("Invalid") || error.message.includes("verify") ? 401 : (error.message.includes("active") ? 403 : 500);
+    return res.status(status).json({
       success: false,
-      message: "Something went wrong",
-      error: error.message,
+      message: error.message || "Something went wrong",
+    });
+  }
+};
+
+const loginBusiness = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await authenticateUser(email, password);
+
+    const rolePivots = await RoleHasUser.find({ user_id: user._id });
+    const roleIds = rolePivots.map(p => p.role_id);
+    const roles = await Role.find({ id: { $in: roleIds } });
+    const roleSlugs = roles.map(r => r.slug);
+
+    const hasBusinessRole = roleSlugs.some(slug => ["b2c-seller", "b2b-buyer", "b2b-seller"].includes(slug));
+    
+    if (!hasBusinessRole) {
+      return res.status(403).json({ success: false, message: "Unauthorized access for business portal" });
+    }
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+      },
+    });
+  } catch (error) {
+    const status = error.message.includes("Invalid") || error.message.includes("verify") ? 401 : (error.message.includes("active") ? 403 : 500);
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Something went wrong",
     });
   }
 };
@@ -918,9 +993,11 @@ const addSavedPaymentMethod = async (req, res) => {
 
 module.exports = {
   addUser,
-  signupUser,
+  registerCustomer,
+  registerBusiness,
   verifyEmailOTP,
-  loginUser,
+  loginCustomer,
+  loginBusiness,
   getUserProfile,
   verifyMobileOTP,
   logoutUser,

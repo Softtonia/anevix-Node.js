@@ -1,5 +1,5 @@
 const express = require("express");
-const b2bCustomerAuth = require("../middleware/b2bCustomerAuth");
+const authenticateJWT = require("../middleware/authenticateJWT");
 const {
   getUserNotifications,
   markAsRead,
@@ -9,7 +9,7 @@ const {
 
 const router = express.Router();
 
-router.use(b2bCustomerAuth);
+router.use(authenticateJWT);
 
 router.get("/", getUserNotifications);
 router.patch("/read-all", markAllAsRead);

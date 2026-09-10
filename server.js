@@ -6,6 +6,9 @@ const userRoutes = require("./src/routes/userRoutes.js");
 const roleRoutes = require("./src/routes/roleRoutes.js");
 const addressRoutes = require("./src/routes/addressRoutes.js");
 const notificationRoutes = require("./src/routes/notificationRoutes.js");
+const customerAuthRoutes = require("./src/routes/customerAuthRoutes.js");
+const businessAuthRoutes = require("./src/routes/businessAuthRoutes.js");
+const sellerOnboardingRoutes = require("./src/routes/sellerOnboardingRoutes.js");
 
 dotenv.config();
 
@@ -19,6 +22,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/auth/customer", customerAuthRoutes);
+app.use("/api/auth/business", businessAuthRoutes);
+app.use("/api/seller/onboarding", sellerOnboardingRoutes);
 
 app.get("/", (req, res) => {
   res.json({

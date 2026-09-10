@@ -1,9 +1,9 @@
 const express = require("express");
-const b2bCustomerAuth = require("../middleware/b2bCustomerAuth");
+const authenticateJWT = require("../middleware/authenticateJWT");
 const { addAddress } = require("../controllers/addressController");
 
 const router = express.Router();
 
-router.post("/", b2bCustomerAuth, addAddress);
+router.post("/", authenticateJWT, addAddress);
 
 module.exports = router;
