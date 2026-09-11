@@ -1,4 +1,3 @@
-const RoleHasUser = require("../models/RoleHasUser");
 const Role = require("../models/Role");
 
 const requireRole = (...allowedRoles) => {
@@ -11,24 +10,30 @@ const requireRole = (...allowedRoles) => {
         });
       }
 
-      const roleMappings = await RoleHasUser.find({
-        user_id: req.user.id,
-      });
+      // Find user
+      const User = require("../models/User");
+      const RoleHasUser = require("../models/RoleHasUser");
+      const Role = require("../models/Role");
 
-      if (!roleMappings.length) {
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(403).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      const roleMappings = await RoleHasUser.find({ user_id: req.user.id });
+      if (!roleMappings || roleMappings.length === 0) {
         return res.status(403).json({
           success: false,
           message: "No role assigned to this account",
         });
       }
 
-      const roleIds = roleMappings.map((mapping) => mapping.role_id);
-
-      const roles = await Role.find({
-        id: { $in: roleIds },
-      });
-
-      const userRoleSlugs = roles.map((role) => role.slug);
+      const roleIds = roleMappings.map((m) => m.role_id);
+      const roles = await Role.find({ id: { $in: roleIds } });
+      const userRoleSlugs = roles.map((r) => r.slug);
 
       const hasAllowedRole = allowedRoles.some((role) =>
         userRoleSlugs.includes(role)

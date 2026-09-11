@@ -8,13 +8,15 @@ const {
   deleteRole
 } = require('../controllers/roleController');
 
+const adminAuth = require('../middleware/adminAuth');
+
 router.route('/')
-  .get(getRoles)
-  .post(createRole);
+  .get(adminAuth, getRoles)
+  .post(adminAuth, createRole);
 
 router.route('/:id')
-  .get(getRole)
-  .put(updateRole)
-  .delete(deleteRole);
+  .get(adminAuth, getRole)
+  .put(adminAuth, updateRole)
+  .delete(adminAuth, deleteRole);
 
 module.exports = router;

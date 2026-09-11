@@ -107,6 +107,137 @@
               ]
             }
           }
+        },
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/roles",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Role",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/roles/1",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "roles",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Moderator\",\n  \"slug\": \"moderator\",\n  \"description\": \"Can moderate reviews and disputes.\",\n  \"guard\": \"web\",\n  \"is_default\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/api/roles",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Edit Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/api/roles/8",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "roles",
+                "8"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/roles/8",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "roles",
+                "8"
+              ]
+            }
+          }
         }
       ]
     },
@@ -590,39 +721,15 @@
       "name": "Seller Onboarding",
       "item": [
         {
-          "name": "GET Profile",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{live}}/api/seller/onboarding/profile",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "api",
-                "seller",
-                "onboarding",
-                "profile"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Step 1",
+          "name": "1. Submit Profile (Step 1)",
           "request": {
             "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"companyName\": \"Acme Corp\",\n  \"businessType\": \"PRIVATE_LIMITED\",\n  \"sellerType\": \"RETAILER\",\n  \"businessAddress\": {\n    \"street\": \"123 Business Rd\",\n    \"city\": \"Mumbai\",\n    \"state\": \"MH\",\n    \"zipCode\": \"400001\",\n    \"country\": \"India\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
               }
-            },
+            ],
             "url": {
               "raw": "{{live}}/api/seller/onboarding/step1",
               "host": [
@@ -634,9 +741,116 @@
                 "onboarding",
                 "step1"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Acme Corp\",\n  \"businessType\": \"PRIVATE_LIMITED\",\n  \"sellerType\": \"RETAILER\",\n  \"businessAddress\": {\n    \"street\": \"123 Tech Park\",\n    \"city\": \"Bangalore\",\n    \"state\": \"KARNATAKA\",\n    \"zipCode\": \"560001\",\n    \"country\": \"India\"\n  },\n  \"residentialAddress\": {\n    \"street\": \"456 Home St\",\n    \"city\": \"Bangalore\",\n    \"state\": \"KARNATAKA\",\n    \"zipCode\": \"560002\",\n    \"country\": \"India\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
-          },
-          "response": []
+          }
+        },
+        {
+          "name": "2. Verify PAN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/seller/onboarding/pan",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "onboarding",
+                "pan"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"panNumber\": \"ABCPV1234D\",\n  \"nameOnPan\": \"Acme Corp\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "3. Verify GSTIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/seller/onboarding/gstin",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "onboarding",
+                "gstin"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gstinNumber\": \"29AAICP2912R1ZR\",\n  \"businessName\": \"UJJIVAN SMALL FINANCE BANK\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "4. Verify Bank Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/seller/onboarding/bank",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "onboarding",
+                "bank"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"1234567890\",\n  \"ifscCode\": \"SBIN0000001\",\n  \"accountHolderName\": \"John Doe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },

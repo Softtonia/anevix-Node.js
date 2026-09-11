@@ -17,33 +17,34 @@ const { createNotification } = require("../services/notificationService");
 
 const addUser = async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, phoneNumber, roles } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists",
-      });
+    const { newUser, verificationTypes, dummyMobileOtp } = await createUserAccount(
+      firstName, 
+      lastName, 
+      email, 
+      phoneNumber, 
+      password
+    );
+
+    if (roles && Array.isArray(roles) && roles.length > 0) {
+      const validatedRoles = await getValidatedRoles(roles);
+      await assignRolesToUser(newUser._id, validatedRoles);
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = new User({
-      firstName,
-      lastName,
-      email,
-      password: hashedPassword,
-    });
-
-    await newUser.save();
+    // Fetch user to include the updated roles in the response
+    const createdUser = await User.findById(newUser._id);
 
     return res.status(201).json({
-      message: "User added successfully",
+      message: "User added successfully. Verification OTPs sent.",
+      verificationTypes,
+      dummyMobileOtp,
       user: {
-        id: newUser._id,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: newUser.email,
+        id: createdUser._id,
+        firstName: createdUser.firstName,
+        lastName: createdUser.lastName,
+        email: createdUser.email,
+        phoneNumber: createdUser.phoneNumber,
       },
     });
   } catch (error) {
@@ -225,7 +226,9 @@ const initializeSellerProfileIfApplicable = async (userId) => {
   try {
     const sellerRole = await Role.findOne({ slug: "b2c-seller" });
     if (!sellerRole) return;
+    
     const hasRole = await RoleHasUser.findOne({ role_id: sellerRole.id, user_id: userId });
+    
     if (hasRole) {
       await SellerProfile.findOneAndUpdate(
         { user: userId },
@@ -603,7 +606,7 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByIdAndDelete(id);
+    const user = await User.findById(id);
 
     if (!user) {
       return res.status(404).json({
@@ -611,6 +614,15 @@ const deleteUser = async (req, res) => {
         message: "User not found",
       });
     }
+
+    if (user.is_default === true) {
+      return res.status(403).json({
+        success: false,
+        message: "The default user/admin cannot be deleted.",
+      });
+    }
+
+    await User.findByIdAndDelete(id);
 
     return res.status(200).json({
       success: true,

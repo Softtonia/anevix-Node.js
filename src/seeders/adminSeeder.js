@@ -1,7 +1,7 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const Admin = require("../models/Admin");
+const User = require("../models/User");
 const connectDB = require("../config/db");
 
 const seedAdmin = async () => {
@@ -10,25 +10,30 @@ const seedAdmin = async () => {
     
     const email = "admin@yopmail.com";
     const password = "admin123";
-    
-    const existingAdmin = await Admin.findOne({ email });
+
+    const existingAdmin = await User.findOne({ email });
     if (existingAdmin) {
-      console.log("Admin already exists!");
+      console.log("Master Admin user already exists!");
       process.exit();
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    await Admin.create({
-      name: "Admin",
+    await User.create({
+      firstName: "Super",
+      lastName: "Admin",
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      is_default: true,
+      isAccountVerified: true,
+      isEmailVerified: true,
+      status: "active"
     });
     
-    console.log("Admin seeded successfully!");
+    console.log("Master Admin user seeded successfully!");
     process.exit();
   } catch (error) {
-    console.error("Error seeding admin:", error);
+    console.error("Error seeding master admin:", error);
     process.exit(1);
   }
 };

@@ -65,6 +65,9 @@ const sellerProfileSchema = new mongoose.Schema(
       accountNumber: { type: String, select: false },
       ifscCode: { type: String, select: false },
       accountHolderName: String,
+      bankName: String,
+      nameMatchScore: String,
+      nameMatchResult: String,
       verificationStatus: {
         type: String,
         enum: ["PENDING", "VERIFIED", "FAILED", "MANUAL_REVIEW"],

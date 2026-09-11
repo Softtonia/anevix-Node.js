@@ -103,6 +103,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    is_default: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

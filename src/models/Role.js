@@ -18,6 +18,10 @@ const roleSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    description: {
+      type: String,
+      trim: true,
+    },
     guard: {
       type: String,
       enum: ['web', 'app'],

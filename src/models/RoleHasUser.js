@@ -7,16 +7,16 @@ const roleHasUserSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    role_id: {
-      type: Number,
-      required: true,
-      ref: 'Role' // Refers to the Role custom id
-    },
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       required: true,
-      // Refers to either User or Admin
-    }
+    },
+    role_id: {
+      type: Number,
+      ref: 'Role',
+      required: true,
+    },
   },
   {
     timestamps: true,

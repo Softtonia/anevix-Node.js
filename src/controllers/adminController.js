@@ -1,4 +1,6 @@
-const Admin = require("../models/Admin");
+const User = require("../models/User");
+const RoleHasUser = require("../models/RoleHasUser");
+const Role = require("../models/Role");
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -9,28 +11,27 @@ const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Static login credentials of yopmail
-    if (email === "admin@yopmail.com" && password === "admin123") {
-      const token = jwt.sign({ id: "static_admin_id" }, process.env.JWT_SECRET, {
-        expiresIn: "1d",
-      });
+    const adminUser = await User.findOne({ email });
 
-      return res.status(200).json({
-        success: true,
-        message: "Login successful",
-        token
-      });
-    }
-
-    const admin = await Admin.findOne({ email });
-
-    if (!admin) {
+    if (!adminUser) {
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
-    const isPasswordMatch = await bcrypt.compare(password, admin.password);
+    const roleMappings = await RoleHasUser.find({ user_id: adminUser._id });
+    const roleIds = roleMappings.map(m => m.role_id);
+    const roles = await Role.find({ id: { $in: roleIds } });
+    
+    const hasAdminRole = roles.some((role) => role.slug === "admin");
+    
+    if (!hasAdminRole) {
+      return res.status(403).json({
+        message: "Forbidden: Admin access required",
+      });
+    }
+
+    const isPasswordMatch = await bcrypt.compare(password, adminUser.password);
 
     if (!isPasswordMatch) {
       return res.status(401).json({
@@ -38,7 +39,7 @@ const loginAdmin = async (req, res) => {
       });
     }
 
-    const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: adminUser._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
 
@@ -47,9 +48,10 @@ const loginAdmin = async (req, res) => {
       message: "Login successful",
       token,
       admin: {
-        id: admin._id,
-        name: admin.name,
-        email: admin.email,
+        id: adminUser._id,
+        firstName: adminUser.firstName,
+        lastName: adminUser.lastName,
+        email: adminUser.email,
       },
     });
   } catch (error) {
@@ -64,9 +66,19 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const admin = await Admin.findOne({ email });
+    const adminUser = await User.findOne({ email });
 
-    if (!admin) {
+    if (!adminUser) {
+      return res.status(404).json({
+        message: "Admin not found",
+      });
+    }
+
+    const roleMappings = await RoleHasUser.find({ user_id: adminUser._id });
+    const roleIds = roleMappings.map(m => m.role_id);
+    const roles = await Role.find({ id: { $in: roleIds } });
+    
+    if (!roles.some((role) => role.slug === "admin")) {
       return res.status(404).json({
         message: "Admin not found",
       });
@@ -74,10 +86,10 @@ const forgotPassword = async (req, res) => {
 
     const resetToken = crypto.randomBytes(32).toString("hex");
 
-    admin.resetPasswordToken = resetToken;
-    admin.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+    adminUser.passwordResetTokenHash = resetToken;
+    adminUser.passwordResetExpiresAt = Date.now() + 15 * 60 * 1000;
 
-    await admin.save();
+    await adminUser.save();
 
     return res.status(200).json({
       message: "Password reset token generated",
@@ -96,12 +108,12 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    const admin = await Admin.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() },
+    const adminUser = await User.findOne({
+      passwordResetTokenHash: token,
+      passwordResetExpiresAt: { $gt: Date.now() },
     });
 
-    if (!admin) {
+    if (!adminUser) {
       return res.status(400).json({
         message: "Invalid or expired reset token",
       });
@@ -109,11 +121,11 @@ const resetPassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    admin.password = hashedPassword;
-    admin.resetPasswordToken = undefined;
-    admin.resetPasswordExpires = undefined;
+    adminUser.password = hashedPassword;
+    adminUser.passwordResetTokenHash = undefined;
+    adminUser.passwordResetExpiresAt = undefined;
 
-    await admin.save();
+    await adminUser.save();
 
     return res.status(200).json({
       message: "Password reset successfully",

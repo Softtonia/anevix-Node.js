@@ -26,7 +26,7 @@ const getRole = async (req, res) => {
 // Create a new role
 const createRole = async (req, res) => {
   try {
-    let { id, name, slug, guard, is_default } = req.body;
+    let { id, name, slug, description, guard, is_default } = req.body;
     
     // Auto-generate numeric ID if not provided
     if (!id) {
@@ -35,7 +35,7 @@ const createRole = async (req, res) => {
     }
 
     const role = await Role.create({
-      id, name, slug, guard, is_default
+      id, name, slug, description, guard, is_default
     });
 
     res.status(201).json({ success: true, data: role });

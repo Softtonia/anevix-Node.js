@@ -1,37 +1,46 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
-const RoleHasUser = require('../models/RoleHasUser');
-const Admin = require('../models/Admin');
-const connectDB = require('../config/db');
+require("dotenv").config();
+const mongoose = require("mongoose");
+const User = require("../models/User");
+const Role = require("../models/Role");
+const RoleHasUser = require("../models/RoleHasUser");
+const connectDB = require("../config/db");
 
 const seedRoleHasUser = async () => {
   try {
     await connectDB();
 
-    // Find the admin user created by adminSeeder
-    const admin = await Admin.findOne({ email: "admin@yopmail.com" });
-    
-    if (!admin) {
-        console.log('Admin user not found! Please run adminSeeder first.');
-        process.exit(1);
+    const adminUser = await User.findOne({ email: "admin@yopmail.com" });
+    if (!adminUser) {
+      console.log("Admin user not found! Please run adminSeeder first.");
+      process.exit(1);
     }
 
-    const existingPivot = await RoleHasUser.findOne({ id: 1 });
-    
-    if (!existingPivot) {
-      await RoleHasUser.create({
-        id: 1,
-        role_id: 1, // Refers to the Admin role created in roleSeeder
-        user_id: admin._id // Refers to the Admin user
-      });
-      console.log('RoleHasUser seeded successfully! Admin is now linked to Admin Role.');
-    } else {
-      console.log('RoleHasUser relation already exists!');
+    const adminRole = await Role.findOne({ slug: "admin" });
+    if (!adminRole) {
+      console.log("Admin role not found! Please run roleSeeder first.");
+      process.exit(1);
     }
 
+    const existingPivot = await RoleHasUser.findOne({
+      user_id: adminUser._id,
+      role_id: adminRole.id,
+    });
+
+    if (existingPivot) {
+      console.log("RoleHasUser mapping already exists for Master Admin.");
+      process.exit();
+    }
+
+    await RoleHasUser.create({
+      id: 1,
+      user_id: adminUser._id,
+      role_id: adminRole.id,
+    });
+
+    console.log("RoleHasUser mapping seeded successfully!");
     process.exit();
   } catch (error) {
-    console.error('Error seeding RoleHasUser:', error);
+    console.error("Error seeding RoleHasUser:", error);
     process.exit(1);
   }
 };
