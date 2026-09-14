@@ -240,6 +240,60 @@
       "name": "Auth - Customer",
       "item": [
         {
+          "name": "Send Registration OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactValue\": \"customer@yopmail.com\",\n  \"contactType\": \"email\"\n}"
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/send-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "send-registration-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Registration OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactValue\": \"customer@yopmail.com\",\n  \"contactType\": \"email\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/verify-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "verify-registration-otp"
+              ]
+            }
+          }
+        },
+        {
           "name": "Register Customer",
           "request": {
             "method": "POST",
@@ -469,6 +523,60 @@
     {
       "name": "Auth - Business",
       "item": [
+        {
+          "name": "Send Registration OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactValue\": \"business@yopmail.com\",\n  \"contactType\": \"email\"\n}"
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/send-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "send-registration-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Registration OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactValue\": \"business@yopmail.com\",\n  \"contactType\": \"email\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/verify-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "verify-registration-otp"
+              ]
+            }
+          }
+        },
         {
           "name": "Register Business",
           "request": {

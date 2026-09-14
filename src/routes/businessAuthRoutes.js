@@ -9,6 +9,8 @@ const {
   updateUnverifiedContact,
   forgotPassword,
   resetPassword,
+  sendRegistrationOtp,
+  verifyRegistrationOtp,
 } = require("../controllers/userController");
 
 const router = express.Router();
@@ -21,6 +23,8 @@ router.post("/login", loginBusiness);
 router.post("/verify-email", verifyEmailOTP);
 router.post("/verify-mobile", verifyMobileOTP);
 router.post("/resend-email-otp", resendEmailOTP);
+router.post("/send-registration-otp", sendRegistrationOtp);
+router.post("/verify-registration-otp", verifyRegistrationOtp);
 
 // Update Unverified Contact
 router.post("/update-unverified-contact", updateUnverifiedContact);

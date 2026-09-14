@@ -1,4 +1,4 @@
-const SellerProfile = require("../models/SellerProfile");
+const BankVerification = require("../models/BankVerification");
 
 /**
  * Middleware to enforce that a seller has a VERIFIED bank account
@@ -12,21 +12,21 @@ const requireVerifiedSellerBank = async (req, res, next) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const profile = await SellerProfile.findOne({ user: userId });
+    const bankRecord = await BankVerification.findOne({ userId });
 
-    if (!profile) {
-      return res.status(403).json({ success: false, message: "Seller profile not found." });
+    if (!bankRecord) {
+      return res.status(403).json({ success: false, message: "Bank verification record not found." });
     }
 
-    if (profile.bankDetails?.verificationStatus !== "VERIFIED") {
+    if (bankRecord.verificationStatus !== "VERIFIED") {
       return res.status(403).json({ 
         success: false, 
         message: "Forbidden: Bank account must be verified to access this resource." 
       });
     }
 
-    // Attach profile to request for downstream handlers if needed
-    req.sellerProfile = profile;
+    // Attach bank record to request for downstream handlers if needed
+    req.bankVerification = bankRecord;
     
     next();
   } catch (error) {

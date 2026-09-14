@@ -1,4 +1,8 @@
 const User = require("../models/User");
+const SellerRegistration = require("../models/SellerRegistration");
+const PanVerification = require("../models/PanVerification");
+const GstinVerification = require("../models/GstinVerification");
+const BankVerification = require("../models/BankVerification");
 const RoleHasUser = require("../models/RoleHasUser");
 const Role = require("../models/Role");
 const { verifyPAN: verifyPanService } = require("../services/panVerificationService");
@@ -25,20 +29,29 @@ const getSellerProfile = async (req, res) => {
     }
 
     // Retrieve the profile. It should have been created during OTP verification
-    let profile = await SellerProfile.findOne({ user: userId });
+    let profile = await SellerRegistration.findOne({ userId });
 
     if (!profile) {
       // Defensive fallback creation just in case
-      profile = await SellerProfile.findOneAndUpdate(
-        { user: userId },
-        { user: userId },
+      profile = await SellerRegistration.findOneAndUpdate(
+        { userId: userId },
+        { userId: userId },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
     }
 
+    const panDetails = await PanVerification.findOne({ userId });
+    const gstinDetails = await GstinVerification.findOne({ userId });
+    const bankDetails = await BankVerification.findOne({ userId });
+
     return res.status(200).json({
       success: true,
-      profile,
+      profile: {
+        ...profile.toObject(),
+        panDetails,
+        gstinDetails,
+        bankDetails
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -69,9 +82,9 @@ const submitStep1 = async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const profile = await SellerProfile.findOne({ user: userId });
+    const profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
-      return res.status(404).json({ success: false, message: "Seller profile not found. Please initialize onboarding first." });
+      return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
     }
 
     if (profile.currentStep !== "SELLER_PROFILE" && profile.onboardingStatus !== "PENDING") {
@@ -132,24 +145,29 @@ const verifyPAN = async (req, res) => {
       return res.status(400).json({ success: false, message: "Name on PAN is required" });
     }
 
-    const profile = await SellerProfile.findOne({ user: userId });
+    const profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
-      return res.status(404).json({ success: false, message: "Seller profile not found. Please initialize onboarding first." });
+      return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
     }
 
     if (profile.currentStep !== "PAN_VERIFICATION") {
       return res.status(400).json({ success: false, message: "Invalid onboarding step" });
     }
 
+    let panRecord = await PanVerification.findOne({ userId });
+    if (!panRecord) {
+      panRecord = new PanVerification({ userId });
+    }
+
     // Idempotency check
-    if (profile.panDetails?.verificationStatus === "VERIFIED" || profile.panDetails?.verificationStatus === "UNDER_REVIEW") {
+    if (panRecord.verificationStatus === "VERIFIED" || panRecord.verificationStatus === "UNDER_REVIEW") {
       return res.status(400).json({ 
         success: false, 
-        message: `PAN is already ${profile.panDetails.verificationStatus}`,
+        message: `PAN is already ${panRecord.verificationStatus}`,
         panDetails: {
-          verificationStatus: profile.panDetails.verificationStatus,
-          nameOnPan: profile.panDetails.nameOnPan,
-          panNumber: profile.panDetails.panNumber ? profile.panDetails.panNumber.substring(0, 5) + "****" + profile.panDetails.panNumber.substring(9) : null
+          verificationStatus: panRecord.verificationStatus,
+          nameOnPan: panRecord.nameOnPan,
+          panNumber: panRecord.panNumber ? panRecord.panNumber.substring(0, 5) + "****" + panRecord.panNumber.substring(9) : null
         }
       });
     }
@@ -157,28 +175,26 @@ const verifyPAN = async (req, res) => {
     // Call service abstraction
     const result = await verifyPanService(panNumber.toUpperCase(), nameOnPan, userId.toString());
 
-    // Update profile
-    profile.panDetails = {
-      panNumber: panNumber.toUpperCase(),
-      nameOnPan: result.nameOnPan || nameOnPan, // Prefer provider's returned name if available
-      verificationStatus: result.status,
-      verifiedAt: new Date(),
-      referenceId: result.referenceId
-    };
+    // Update pan record
+    panRecord.panNumber = panNumber.toUpperCase();
+    panRecord.nameOnPan = result.nameOnPan || nameOnPan;
+    panRecord.verificationStatus = result.status;
+    panRecord.verificationTimestamp = new Date();
+    panRecord.providerReferenceId = result.referenceId;
+    await panRecord.save();
 
     if (result.status === "VERIFIED") {
       profile.currentStep = "GSTIN_VERIFICATION";
+      await profile.save();
     }
-
-    await profile.save();
 
     return res.status(200).json({
       success: result.success,
       message: result.message,
       status: result.status,
       panDetails: {
-        verificationStatus: profile.panDetails.verificationStatus,
-        nameOnPan: profile.panDetails.nameOnPan,
+        verificationStatus: panRecord.verificationStatus,
+        nameOnPan: panRecord.nameOnPan,
         panNumber: panNumber.substring(0, 5) + "****" + panNumber.substring(9)
       }
     });
@@ -211,9 +227,9 @@ const verifyGSTIN = async (req, res) => {
       return res.status(400).json({ success: false, message: "GSTIN number is required" });
     }
 
-    const profile = await SellerProfile.findOne({ user: userId });
+    const profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
-      return res.status(404).json({ success: false, message: "Seller profile not found. Please initialize onboarding first." });
+      return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
     }
 
     // State Enforcement
@@ -221,19 +237,25 @@ const verifyGSTIN = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid onboarding step. Must be at GSTIN_VERIFICATION step." });
     }
 
-    if (profile.panDetails?.verificationStatus !== "VERIFIED") {
+    const panRecord = await PanVerification.findOne({ userId });
+    if (!panRecord || panRecord.verificationStatus !== "VERIFIED") {
       return res.status(400).json({ success: false, message: "PAN verification must be completed first." });
     }
 
+    let gstinRecord = await GstinVerification.findOne({ userId });
+    if (!gstinRecord) {
+      gstinRecord = new GstinVerification({ userId });
+    }
+
     // Idempotency check
-    if (profile.gstinDetails?.verificationStatus === "VERIFIED" || profile.gstinDetails?.verificationStatus === "UNDER_REVIEW") {
+    if (gstinRecord.verificationStatus === "VERIFIED" || gstinRecord.verificationStatus === "UNDER_REVIEW") {
       return res.status(400).json({ 
         success: false, 
-        message: `GSTIN is already ${profile.gstinDetails.verificationStatus}`,
+        message: `GSTIN is already ${gstinRecord.verificationStatus}`,
         gstinDetails: {
-          verificationStatus: profile.gstinDetails.verificationStatus,
-          legalName: profile.gstinDetails.legalName,
-          gstinNumber: profile.gstinDetails.gstinNumber ? profile.gstinDetails.gstinNumber.substring(0, 5) + "**********" : null
+          verificationStatus: gstinRecord.verificationStatus,
+          legalName: gstinRecord.legalName,
+          gstinNumber: gstinRecord.gstinNumber ? gstinRecord.gstinNumber.substring(0, 5) + "**********" : null
         }
       });
     }
@@ -241,35 +263,31 @@ const verifyGSTIN = async (req, res) => {
     // Call service abstraction
     const result = await verifyGstService(gstinNumber, businessName);
 
-    // Update profile
-    profile.gstinDetails = {
-      gstinNumber: gstinNumber,
-      legalName: result.legalName || businessName,
-      tradeName: result.tradeName,
-      registrationStatus: result.registrationStatus,
-      state: result.state,
-      registrationDate: result.registrationDate,
-      verificationStatus: result.status,
-      verifiedAt: new Date(),
-      referenceId: result.referenceId
-    };
+    // Update record
+    gstinRecord.gstinNumber = gstinNumber;
+    gstinRecord.legalName = result.legalName || businessName;
+    gstinRecord.tradeName = result.tradeName;
+    gstinRecord.registrationStatus = result.registrationStatus;
+    gstinRecord.state = result.state;
+    gstinRecord.registrationDate = result.registrationDate;
+    gstinRecord.verificationStatus = result.status;
+    await gstinRecord.save();
 
     if (result.status === "VERIFIED") {
       profile.currentStep = "BANK_VERIFICATION";
+      await profile.save();
     }
-
-    await profile.save();
 
     return res.status(200).json({
       success: result.success,
       message: result.message,
       status: result.status,
       gstinDetails: {
-        verificationStatus: profile.gstinDetails.verificationStatus,
-        legalName: profile.gstinDetails.legalName,
-        tradeName: profile.gstinDetails.tradeName,
-        registrationStatus: profile.gstinDetails.registrationStatus,
-        state: profile.gstinDetails.state,
+        verificationStatus: gstinRecord.verificationStatus,
+        legalName: gstinRecord.legalName,
+        tradeName: gstinRecord.tradeName,
+        registrationStatus: gstinRecord.registrationStatus,
+        state: gstinRecord.state,
         gstinNumber: gstinNumber.substring(0, 5) + "**********"
       }
     });
@@ -305,9 +323,9 @@ const verifyBankAccount = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const profile = await SellerProfile.findOne({ user: userId });
+    const profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
-      return res.status(404).json({ success: false, message: "Seller profile not found. Please initialize onboarding first." });
+      return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
     }
 
     // State Enforcement
@@ -315,23 +333,30 @@ const verifyBankAccount = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid onboarding step. Must be at BANK_VERIFICATION step." });
     }
 
-    if (profile.panDetails?.verificationStatus !== "VERIFIED") {
+    const panRecord = await PanVerification.findOne({ userId });
+    if (!panRecord || panRecord.verificationStatus !== "VERIFIED") {
       return res.status(400).json({ success: false, message: "PAN verification must be completed first." });
     }
 
-    if (profile.gstinDetails?.verificationStatus !== "VERIFIED") {
+    const gstinRecord = await GstinVerification.findOne({ userId });
+    if (!gstinRecord || gstinRecord.verificationStatus !== "VERIFIED") {
       // Future logic: unless GST applicability rules explicitly make GST not required
       return res.status(400).json({ success: false, message: "GSTIN verification must be completed first." });
     }
 
+    let bankRecord = await BankVerification.findOne({ userId });
+    if (!bankRecord) {
+      bankRecord = new BankVerification({ userId });
+    }
+
     // Idempotency check
-    if (profile.bankDetails?.verificationStatus === "VERIFIED" || profile.bankDetails?.verificationStatus === "MANUAL_REVIEW") {
+    if (bankRecord.verificationStatus === "VERIFIED" || bankRecord.verificationStatus === "MANUAL_REVIEW") {
       return res.status(400).json({ 
         success: false, 
-        message: `Bank account is already ${profile.bankDetails.verificationStatus}`,
+        message: `Bank account is already ${bankRecord.verificationStatus}`,
         bankDetails: {
-          verificationStatus: profile.bankDetails.verificationStatus,
-          accountHolderName: profile.bankDetails.accountHolderName,
+          verificationStatus: bankRecord.verificationStatus,
+          accountHolderName: bankRecord.accountHolderName,
           accountNumber: "XXXXXXXXXX"
         }
       });
@@ -340,33 +365,27 @@ const verifyBankAccount = async (req, res) => {
     // Call service abstraction
     const result = await verifyBankService(accountNumber, ifscCode, accountHolderName, user.phoneNumber);
 
-    // Update profile
-    profile.bankDetails = {
-      accountNumber: accountNumber,
-      ifscCode: ifscCode,
-      accountHolderName: result.accountHolderName || accountHolderName,
-      bankName: result.bankName,
-      nameMatchScore: result.nameMatchScore,
-      nameMatchResult: result.nameMatchResult,
-      verificationStatus: result.status,
-      verifiedAt: new Date(),
-      referenceId: result.referenceId
-    };
+    // Update record
+    bankRecord.accountNumber = accountNumber;
+    bankRecord.ifscCode = ifscCode;
+    bankRecord.accountHolderName = result.accountHolderName || accountHolderName;
+    bankRecord.bankName = result.bankName;
+    bankRecord.verificationStatus = result.status;
+    await bankRecord.save();
 
     if (result.status === "VERIFIED") {
       profile.currentStep = "PICKUP_ADDRESS";
+      await profile.save();
     }
-
-    await profile.save();
 
     return res.status(200).json({
       success: result.success,
       message: result.message,
       status: result.status,
       bankDetails: {
-        verificationStatus: profile.bankDetails.verificationStatus,
-        accountHolderName: profile.bankDetails.accountHolderName,
-        bankName: profile.bankDetails.bankName,
+        verificationStatus: bankRecord.verificationStatus,
+        accountHolderName: bankRecord.accountHolderName,
+        bankName: bankRecord.bankName,
         accountNumber: "XXXXXX" + accountNumber.slice(-4)
       }
     });

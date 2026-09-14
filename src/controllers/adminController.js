@@ -42,7 +42,7 @@ const loginAdmin = async (req, res) => {
     }
 
     const token = jwt.sign({ id: adminUser._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+      expiresIn: "90d",
     });
 
     res.status(200).json({
@@ -106,6 +106,8 @@ const forgotPassword = async (req, res) => {
     let htmlBody = template.body;
     htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
     htmlBody = htmlBody.replace(/\{\{ResetLink\}\}/gi, resetLink).replace(/\{\{reset_link\}\}/gi, resetLink);
+    htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+    htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
 
     await sendEmail(
       adminUser.email,

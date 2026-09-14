@@ -7,7 +7,8 @@ const Wishlist = require("../models/Wishlist");
 const SavedPaymentMethod = require("../models/SavedPaymentMethod");
 const Review = require("../models/Review");
 const Notification = require("../models/Notification");
-const SellerProfile = require("../models/SellerProfile");
+const SellerRegistration = require("../models/SellerRegistration");
+const PreRegistrationOtp = require("../models/PreRegistrationOtp");
 const EmailTemplate = require("../models/EmailTemplate");
 const bcrypt = require("bcryptjs");
 const generateOTP = require("../utils/otp");
@@ -75,6 +76,29 @@ const createUserAccount = async (firstName, lastName, email, phoneNumber, passwo
     throw new Error("First name, last name, password and email or phone number are required");
   }
 
+  // Pre-registration Verification Checks
+  if (email) {
+    const verifiedEmailOtp = await PreRegistrationOtp.findOne({
+      contactValue: email.toLowerCase().trim(),
+      contactType: "email",
+      isVerified: true
+    });
+    if (!verifiedEmailOtp) {
+      throw new Error("Please verify your email address before registering.");
+    }
+  }
+
+  if (phoneNumber) {
+    const verifiedMobileOtp = await PreRegistrationOtp.findOne({
+      contactValue: phoneNumber.trim(),
+      contactType: "mobile",
+      isVerified: true
+    });
+    if (!verifiedMobileOtp) {
+      throw new Error("Please verify your mobile number before registering.");
+    }
+  }
+
   const existingUser = await User.findOne({
     $or: [
       ...(email ? [{ email: email.toLowerCase().trim() }] : []),
@@ -94,54 +118,16 @@ const createUserAccount = async (firstName, lastName, email, phoneNumber, passwo
     email: email ? email.toLowerCase().trim() : undefined,
     phoneNumber: phoneNumber ? phoneNumber.trim() : undefined,
     password: hashedPassword,
+    isEmailVerified: email ? true : false,
+    isMobileVerified: phoneNumber ? true : false,
   });
 
-  const emailOtp = generateOTP();
-  const mobileOtp = "123456"; // Dummy OTP for now
+  // Cleanup pre-registration OTPs
+  if (email) await PreRegistrationOtp.deleteMany({ contactValue: email.toLowerCase().trim() });
+  if (phoneNumber) await PreRegistrationOtp.deleteMany({ contactValue: phoneNumber.trim() });
+
   let verificationTypes = [];
-
-  if (email) {
-    const emailOtpHash = crypto
-      .createHash("sha256")
-      .update(emailOtp)
-      .digest("hex");
-    newUser.emailOtpHash = emailOtpHash;
-    newUser.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    const template = await EmailTemplate.findOne({ key: "VERIFY_EMAIL" });
-    if (!template) {
-      throw new Error("Email template VERIFY_EMAIL not found");
-    }
-
-    const userName = `${newUser.firstName || ''} ${newUser.lastName || ''}`.trim();
-    let htmlBody = template.body;
-    htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
-    htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
-    htmlBody = htmlBody.replace(/\{\{VerificationOTP\}\}/gi, emailOtp);
-    htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
-
-    await sendEmail(
-      newUser.email,
-      template.subject,
-      "Please view this email in an HTML-compatible client.",
-      htmlBody
-    );
-    verificationTypes.push("email");
-  }
-
-  if (phoneNumber) {
-    const mobileOtpHash = crypto
-      .createHash("sha256")
-      .update(mobileOtp)
-      .digest("hex");
-    newUser.mobileOtpHash = mobileOtpHash;
-    newUser.mobileOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    verificationTypes.push("mobile");
-  }
-
-  await newUser.save();
-
-  return { newUser, verificationTypes, dummyMobileOtp: phoneNumber ? mobileOtp : undefined };
+  return { newUser, verificationTypes, dummyMobileOtp: null };
 };
 
 const assignRolesToUser = async (userId, roles) => {
@@ -176,11 +162,15 @@ const registerCustomer = async (req, res) => {
     
     await assignRolesToUser(newUser._id, validatedRoles);
 
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    await User.updateOne({ _id: newUser._id }, { lastLoginAt: new Date() });
+
     return res.status(201).json({
       success: true,
       message: "Customer signup successful",
       verificationTypes,
       dummyMobileOtp,
+      token,
       user: {
         id: newUser._id,
         firstName: newUser.firstName,
@@ -190,7 +180,7 @@ const registerCustomer = async (req, res) => {
       },
     });
   } catch (error) {
-    const status = error.message.includes("User already exists") || error.message.includes("are required") || error.message.includes("Invalid roles") ? 400 : 500;
+    const status = error.message.includes("User already exists") || error.message.includes("are required") || error.message.includes("Invalid roles") || error.message.includes("verify") ? 400 : 500;
     return res.status(status).json({
       success: false,
       message: error.message || "Something went wrong",
@@ -218,11 +208,15 @@ const registerBusiness = async (req, res) => {
     
     await assignRolesToUser(newUser._id, validatedRoles);
 
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    await User.updateOne({ _id: newUser._id }, { lastLoginAt: new Date() });
+
     return res.status(201).json({
       success: true,
       message: "Business signup successful",
       verificationTypes,
       dummyMobileOtp,
+      token,
       user: {
         id: newUser._id,
         firstName: newUser.firstName,
@@ -232,7 +226,7 @@ const registerBusiness = async (req, res) => {
       },
     });
   } catch (error) {
-    const status = error.message.includes("Invalid roles") || error.message.includes("User already exists") || error.message.includes("are required") ? 400 : 500;
+    const status = error.message.includes("Invalid roles") || error.message.includes("User already exists") || error.message.includes("are required") || error.message.includes("verify") ? 400 : 500;
     return res.status(status).json({
       success: false,
       message: error.message || "Something went wrong",
@@ -240,7 +234,7 @@ const registerBusiness = async (req, res) => {
   }
 };
 
-const initializeSellerProfileIfApplicable = async (userId) => {
+const initializeSellerRegistrationIfApplicable = async (userId) => {
   try {
     const sellerRole = await Role.findOne({ slug: "b2c-seller" });
     if (!sellerRole) return;
@@ -248,9 +242,9 @@ const initializeSellerProfileIfApplicable = async (userId) => {
     const hasRole = await RoleHasUser.findOne({ role_id: sellerRole.id, user_id: userId });
     
     if (hasRole) {
-      await SellerProfile.findOneAndUpdate(
-        { user: userId },
-        { user: userId },
+      await SellerRegistration.findOneAndUpdate(
+        { userId: userId },
+        { userId: userId },
         { upsert: true, setDefaultsOnInsert: true }
       );
     }
@@ -301,7 +295,7 @@ const verifyEmailOTP = async (req, res) => {
 
     await user.save();
 
-    await initializeSellerProfileIfApplicable(user._id);
+    await initializeSellerRegistrationIfApplicable(user._id);
 
     if (!wasAccountVerified) {
       try {
@@ -365,7 +359,7 @@ const resendEmailOTP = async (req, res) => {
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     user.emailOtpHash = otpHash;
-    user.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    user.emailOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     await user.save();
 
@@ -442,7 +436,7 @@ const verifyMobileOTP = async (req, res) => {
 
     await user.save();
 
-    await initializeSellerProfileIfApplicable(user._id);
+    await initializeSellerRegistrationIfApplicable(user._id);
 
     if (!wasAccountVerified) {
       try {
@@ -756,6 +750,8 @@ const forgotPassword = async (req, res) => {
     let htmlBody = template.body;
     htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
     htmlBody = htmlBody.replace(/\{\{ResetLink\}\}/gi, resetLink).replace(/\{\{reset_link\}\}/gi, resetLink);
+    htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+    htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
 
     await sendEmail(
       user.email,
@@ -1071,6 +1067,99 @@ const addSavedPaymentMethod = async (req, res) => {
   }
 };
 
+const sendRegistrationOtp = async (req, res) => {
+  try {
+    const { contactValue, contactType } = req.body;
+    
+    if (!contactValue || !contactType || !["email", "mobile"].includes(contactType)) {
+      return res.status(400).json({ success: false, message: "Valid contactValue and contactType (email or mobile) are required." });
+    }
+    
+    const formattedContact = contactType === "email" ? contactValue.toLowerCase().trim() : contactValue.trim();
+
+    // Check if user already exists
+    const existingUser = await User.findOne(contactType === "email" ? { email: formattedContact } : { phoneNumber: formattedContact });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: `User already exists with this ${contactType}.` });
+    }
+
+    const otp = generateOTP();
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+    
+    await PreRegistrationOtp.findOneAndUpdate(
+      { contactValue: formattedContact, contactType },
+      { 
+        otpHash, 
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000), 
+        isVerified: false 
+      },
+      { upsert: true, new: true }
+    );
+
+    if (contactType === "email") {
+      const template = await EmailTemplate.findOne({ key: "VERIFY_EMAIL" });
+      if (!template) {
+        return res.status(500).json({ success: false, message: "Email template VERIFY_EMAIL not found" });
+      }
+
+      const userName = "New User";
+      let htmlBody = template.body;
+      htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
+      htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+      htmlBody = htmlBody.replace(/\{\{VerificationOTP\}\}/gi, otp);
+      htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
+      
+      let subject = template.subject;
+      subject = subject.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
+      subject = subject.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+
+      await sendEmail(
+        formattedContact,
+        subject,
+        "Please view this email in an HTML-compatible client.",
+        htmlBody
+      );
+    }
+
+    return res.status(200).json({ success: true, message: `OTP sent to ${contactType} successfully.`, dummyOtp: contactType === "mobile" ? otp : undefined });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Something went wrong", error: error.message });
+  }
+};
+
+const verifyRegistrationOtp = async (req, res) => {
+  try {
+    const { contactValue, contactType, otp } = req.body;
+    
+    if (!contactValue || !contactType || !otp) {
+      return res.status(400).json({ success: false, message: "contactValue, contactType, and otp are required." });
+    }
+    
+    const formattedContact = contactType === "email" ? contactValue.toLowerCase().trim() : contactValue.trim();
+
+    const otpRecord = await PreRegistrationOtp.findOne({ contactValue: formattedContact, contactType });
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: "No active OTP found. Please request a new one." });
+    }
+
+    if (new Date() > otpRecord.expiresAt) {
+      return res.status(400).json({ success: false, message: "OTP has expired. Please request a new one." });
+    }
+
+    const providedOtpHash = crypto.createHash("sha256").update(otp).digest("hex");
+    if (otpRecord.otpHash !== providedOtpHash) {
+      return res.status(400).json({ success: false, message: "Invalid OTP." });
+    }
+
+    otpRecord.isVerified = true;
+    await otpRecord.save();
+
+    return res.status(200).json({ success: true, message: `${contactType} verified successfully! You can now complete registration.` });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Something went wrong", error: error.message });
+  }
+};
+
 module.exports = {
   addUser,
   registerCustomer,
@@ -1090,4 +1179,6 @@ module.exports = {
   addOrder,
   addToWishlist,
   addSavedPaymentMethod,
+  sendRegistrationOtp,
+  verifyRegistrationOtp,
 };

@@ -20,12 +20,10 @@ router.post("/add", adminAuth, addUser);
 router.delete("/delete/:id", adminAuth, deleteUser);
 router.put("/edit/:id", adminAuth, editUser);
 
-
-
-router.get("/profile", authenticateJWT, requireRole("b2c-customer", "b2b-buyer", "b2b-seller"), getUserProfile);
+router.get("/profile", authenticateJWT, getUserProfile);
 
 // Logout User
-router.post("/logout", authenticateJWT, requireRole("b2c-customer", "b2b-buyer", "b2b-seller"), logoutUser);
+router.post("/logout", authenticateJWT, logoutUser);
 
 // Order and Wishlist
 router.post("/order", authenticateJWT, requireRole("b2c-customer", "b2b-buyer"), addOrder);
