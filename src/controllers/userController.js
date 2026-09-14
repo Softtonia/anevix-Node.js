@@ -108,10 +108,23 @@ const createUserAccount = async (firstName, lastName, email, phoneNumber, passwo
     newUser.emailOtpHash = emailOtpHash;
     newUser.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+    const template = await EmailTemplate.findOne({ key: "VERIFY_EMAIL" });
+    if (!template) {
+      throw new Error("Email template VERIFY_EMAIL not found");
+    }
+
+    const userName = `${newUser.firstName || ''} ${newUser.lastName || ''}`.trim();
+    let htmlBody = template.body;
+    htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
+    htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+    htmlBody = htmlBody.replace(/\{\{VerificationOTP\}\}/gi, emailOtp);
+    htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
+
     await sendEmail(
       newUser.email,
-      "Anevix Email Verification OTP",
-      `Your Anevix verification OTP is: ${emailOtp}. It is valid for 10 minutes.`,
+      template.subject,
+      "Please view this email in an HTML-compatible client.",
+      htmlBody
     );
     verificationTypes.push("email");
   }
@@ -356,10 +369,23 @@ const resendEmailOTP = async (req, res) => {
 
     await user.save();
 
+    const template = await EmailTemplate.findOne({ key: "VERIFY_EMAIL" });
+    if (!template) {
+      return res.status(500).json({ message: "Email template VERIFY_EMAIL not found" });
+    }
+
+    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    let htmlBody = template.body;
+    htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
+    htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+    htmlBody = htmlBody.replace(/\{\{VerificationOTP\}\}/gi, otp);
+    htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
+
     await sendEmail(
       user.email,
-      "Anevix Email Verification OTP",
-      `Your Anevix verification OTP is: ${otp}. It is valid for 10 minutes.`,
+      template.subject,
+      "Please view this email in an HTML-compatible client.",
+      htmlBody
     );
 
     return res.status(200).json({
