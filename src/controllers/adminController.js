@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const RoleHasUser = require("../models/RoleHasUser");
 const Role = require("../models/Role");
+const EmailTemplate = require("../models/EmailTemplate");
+const sendEmail = require("../utils/sendEmail");
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -11,7 +13,7 @@ const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const adminUser = await User.findOne({ email });
+    const adminUser = await User.findOne({ email: email.trim().toLowerCase() });
 
     if (!adminUser) {
       return res.status(401).json({
@@ -91,9 +93,29 @@ const forgotPassword = async (req, res) => {
 
     await adminUser.save();
 
+    const template = await EmailTemplate.findOne({ key: "FORGOT_PASSWORD_ADMIN" });
+    if (!template) {
+      return res.status(500).json({
+        message: "Email template not found for FORGOT_PASSWORD_ADMIN",
+      });
+    }
+
+    const resetLink = `${process.env.FRONTEND_URL || 'https://api.anevix.in'}/admin/reset-password/${resetToken}`;
+    const userName = `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim();
+
+    let htmlBody = template.body;
+    htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
+    htmlBody = htmlBody.replace(/\{\{ResetLink\}\}/gi, resetLink).replace(/\{\{reset_link\}\}/gi, resetLink);
+
+    await sendEmail(
+      adminUser.email,
+      template.subject,
+      "Please view this email in an HTML-compatible client.",
+      htmlBody
+    );
+
     return res.status(200).json({
-      message: "Password reset token generated",
-      resetToken,
+      message: "Password reset token generated and email sent",
     });
   } catch (error) {
     res.status(500).json({
@@ -106,7 +128,19 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
-    const { password } = req.body;
+    const { password, confirmPassword } = req.body;
+
+    if (!password || !confirmPassword) {
+      return res.status(400).json({
+        message: "Password and confirmPassword are required",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        message: "Passwords do not match",
+      });
+    }
 
     const adminUser = await User.findOne({
       passwordResetTokenHash: token,
@@ -116,6 +150,13 @@ const resetPassword = async (req, res) => {
     if (!adminUser) {
       return res.status(400).json({
         message: "Invalid or expired reset token",
+      });
+    }
+
+    const isSamePassword = await bcrypt.compare(password, adminUser.password);
+    if (isSamePassword) {
+      return res.status(400).json({
+        message: "New password cannot be the same as the old password",
       });
     }
 

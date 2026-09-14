@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, text, html) => {
   const transporter = nodemailer.createTransport({
     host: "smtp.zoho.in",
     port: 465,
@@ -16,6 +16,7 @@ const sendEmail = async (to, subject, text) => {
     to,
     subject,
     text,
+    html,
   });
 };
 

@@ -14,7 +14,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@yopmail.com\",\n  \"password\": \"admin123\"\n}",
+              "raw": "{\n  \"email\": \"diya@yopmail.com\",\n  \"password\": \"admin123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -66,7 +66,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"password\": \"newpassword123\"\n}",
+              "raw": "{\n  \"password\": \"newpassword123\",\n  \"confirmPassword\": \"newpassword123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -119,12 +119,11 @@
               }
             ],
             "url": {
-              "raw": "{{live}}/api/roles",
+              "raw": "{{live}}/roles",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "roles"
               ]
             }
@@ -141,12 +140,11 @@
               }
             ],
             "url": {
-              "raw": "{{live}}/api/roles/1",
+              "raw": "{{live}}/roles/1",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "roles",
                 "1"
               ]
@@ -173,12 +171,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/roles",
+              "raw": "{{live}}/roles",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "roles"
               ]
             }
@@ -204,12 +201,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/roles/8",
+              "raw": "{{live}}/roles/8",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "roles",
                 "8"
               ]
@@ -227,12 +223,11 @@
               }
             ],
             "url": {
-              "raw": "{{live}}/api/roles/8",
+              "raw": "{{live}}/roles/8",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "roles",
                 "8"
               ]
@@ -259,12 +254,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/register",
+              "raw": "{{live}}/auth/customer/register",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "register"
@@ -288,12 +282,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/login",
+              "raw": "{{live}}/auth/customer/login",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "login"
@@ -317,12 +310,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/verify-email",
+              "raw": "{{live}}/auth/customer/verify-email",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "verify-email"
@@ -346,12 +338,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/verify-mobile",
+              "raw": "{{live}}/auth/customer/verify-mobile",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "verify-mobile"
@@ -375,12 +366,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/resend-email-otp",
+              "raw": "{{live}}/auth/customer/resend-email-otp",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "resend-email-otp"
@@ -404,12 +394,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/update-unverified-contact",
+              "raw": "{{live}}/auth/customer/update-unverified-contact",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "update-unverified-contact"
@@ -433,12 +422,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/forgot-password",
+              "raw": "{{live}}/auth/customer/forgot-password",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "forgot-password"
@@ -454,7 +442,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newPassword\": \"newpassword123\"\n}",
+              "raw": "{\n  \"password\": \"newpassword123\",\n  \"confirmPassword\": \"newpassword123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -462,12 +450,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/customer/reset-password/TOKEN_HERE",
+              "raw": "{{live}}/auth/customer/reset-password/TOKEN_HERE",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "customer",
                 "reset-password",
@@ -497,12 +484,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/register",
+              "raw": "{{live}}/auth/business/register",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "register"
@@ -526,12 +512,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/login",
+              "raw": "{{live}}/auth/business/login",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "login"
@@ -555,12 +540,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/verify-email",
+              "raw": "{{live}}/auth/business/verify-email",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "verify-email"
@@ -584,12 +568,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/verify-mobile",
+              "raw": "{{live}}/auth/business/verify-mobile",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "verify-mobile"
@@ -613,12 +596,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/resend-email-otp",
+              "raw": "{{live}}/auth/business/resend-email-otp",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "resend-email-otp"
@@ -642,12 +624,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/update-unverified-contact",
+              "raw": "{{live}}/auth/business/update-unverified-contact",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "update-unverified-contact"
@@ -671,12 +652,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/forgot-password",
+              "raw": "{{live}}/auth/business/forgot-password",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "forgot-password"
@@ -692,7 +672,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newPassword\": \"newpassword123\"\n}",
+              "raw": "{\n  \"password\": \"newpassword123\",\n  \"confirmPassword\": \"newpassword123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -700,12 +680,11 @@
               }
             },
             "url": {
-              "raw": "{{live}}/api/auth/business/reset-password/TOKEN_HERE",
+              "raw": "{{live}}/auth/business/reset-password/TOKEN_HERE",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "auth",
                 "business",
                 "reset-password",
@@ -731,12 +710,11 @@
               }
             ],
             "url": {
-              "raw": "{{live}}/api/seller/onboarding/step1",
+              "raw": "{{live}}/seller/onboarding/step1",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "seller",
                 "onboarding",
                 "step1"
@@ -764,12 +742,11 @@
               }
             ],
             "url": {
-              "raw": "{{live}}/api/seller/onboarding/pan",
+              "raw": "{{live}}/seller/onboarding/pan",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "seller",
                 "onboarding",
                 "pan"
@@ -797,12 +774,11 @@
               }
             ],
             "url": {
-              "raw": "{{live}}/api/seller/onboarding/gstin",
+              "raw": "{{live}}/seller/onboarding/gstin",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "seller",
                 "onboarding",
                 "gstin"
@@ -830,12 +806,11 @@
               }
             ],
             "url": {
-              "raw": "{{live}}/api/seller/onboarding/bank",
+              "raw": "{{live}}/seller/onboarding/bank",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "api",
                 "seller",
                 "onboarding",
                 "bank"
@@ -869,7 +844,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"roles\": [\n    \"customer\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1214,6 +1189,243 @@
               "path": [
                 "notifications",
                 "NOTIFICATION_ID_HERE"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Email Templates",
+      "item": [
+        {
+          "name": "Get Placeholders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/email-templates/placeholders",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates",
+                "placeholders"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"User Forgot Password\",\n  \"key\": \"FORGOT_PASSWORD_USER\",\n  \"subject\": \"Reset your password\",\n  \"body\": \"Hello {{user_name}}, click <a href='{{reset_link}}'>here</a> to reset.\",\n  \"placeholders\": [\"{{user_name}}\", \"{{reset_link}}\"],\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/admin/email-templates",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/email-templates?page=1&per_page=20",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Preview Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Hello {{user_name}}, here is your {{reset_link}}\",\n  \"dummyData\": {\n    \"user_name\": \"Test User\",\n    \"reset_link\": \"https://example.com/reset\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/admin/email-templates/preview",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates",
+                "preview"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Template By Key",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/email-templates/by-key/FORGOT_PASSWORD_USER",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates",
+                "by-key",
+                "FORGOT_PASSWORD_USER"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Template By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/email-templates/YOUR_TEMPLATE_ID",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates",
+                "YOUR_TEMPLATE_ID"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Template By ID",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Updated Subject\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/admin/email-templates/YOUR_TEMPLATE_ID",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates",
+                "YOUR_TEMPLATE_ID"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Template By ID",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/email-templates/YOUR_TEMPLATE_ID",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "email-templates",
+                "YOUR_TEMPLATE_ID"
               ]
             }
           }

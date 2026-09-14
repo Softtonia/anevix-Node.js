@@ -8,6 +8,7 @@ const SavedPaymentMethod = require("../models/SavedPaymentMethod");
 const Review = require("../models/Review");
 const Notification = require("../models/Notification");
 const SellerProfile = require("../models/SellerProfile");
+const EmailTemplate = require("../models/EmailTemplate");
 const bcrypt = require("bcryptjs");
 const generateOTP = require("../utils/otp");
 const crypto = require("crypto");
@@ -18,6 +19,10 @@ const { createNotification } = require("../services/notificationService");
 const addUser = async (req, res) => {
   try {
     const { email, password, firstName, lastName, phoneNumber, roles } = req.body;
+
+    if (!roles || !Array.isArray(roles) || roles.length === 0) {
+      return res.status(400).json({ message: "At least one role is required" });
+    }
 
     const { newUser, verificationTypes, dummyMobileOtp } = await createUserAccount(
       firstName, 
@@ -711,16 +716,31 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
+    const template = await EmailTemplate.findOne({ key: "FORGOT_PASSWORD_USER" });
+    if (!template) {
+      return res.status(500).json({
+        success: false,
+        message: "Email template not found for FORGOT_PASSWORD_USER",
+      });
+    }
+
+    const resetLink = `${process.env.FRONTEND_URL || 'https://api.anevix.in'}/auth/reset-password/${resetToken}`;
+    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
+    let htmlBody = template.body;
+    htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
+    htmlBody = htmlBody.replace(/\{\{ResetLink\}\}/gi, resetLink).replace(/\{\{reset_link\}\}/gi, resetLink);
+
     await sendEmail(
       user.email,
-      "Anevix Password Reset",
-      `Your password reset token is: ${resetToken}. It is valid for 15 minutes.`,
+      template.subject,
+      "Please view this email in an HTML-compatible client.",
+      htmlBody
     );
 
     return res.status(200).json({
       success: true,
-      message: "Password reset token sent to email",
-      resetToken, // Returned for easier testing
+      message: "Password reset email sent",
     });
   } catch (error) {
     return res.status(500).json({
@@ -734,7 +754,21 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
-    const { password } = req.body;
+    const { password, confirmPassword } = req.body;
+
+    if (!password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Password and confirmPassword are required",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
 
     const resetTokenHash = crypto
       .createHash("sha256")
@@ -750,6 +784,14 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid or expired reset token",
+      });
+    }
+
+    const isSamePassword = await bcrypt.compare(password, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password cannot be the same as the old password",
       });
     }
 

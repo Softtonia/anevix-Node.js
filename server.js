@@ -9,6 +9,7 @@ const notificationRoutes = require("./src/routes/notificationRoutes.js");
 const customerAuthRoutes = require("./src/routes/customerAuthRoutes.js");
 const businessAuthRoutes = require("./src/routes/businessAuthRoutes.js");
 const sellerOnboardingRoutes = require("./src/routes/sellerOnboardingRoutes.js");
+const emailTemplateRoutes = require("./src/routes/emailTemplateRoutes.js");
 
 dotenv.config();
 
@@ -17,14 +18,15 @@ app.use(express.json({ strict: false }));
 
  connectDB();
 
-app.use("/api/admin", adminRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/roles", roleRoutes);
-app.use("/api/addresses", addressRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/auth/customer", customerAuthRoutes);
-app.use("/api/auth/business", businessAuthRoutes);
-app.use("/api/seller/onboarding", sellerOnboardingRoutes);
+app.use("/admin/email-templates", emailTemplateRoutes);
+app.use("/admin", adminRoutes);
+app.use("/users", userRoutes);
+app.use("/roles", roleRoutes);
+app.use("/addresses", addressRoutes);
+app.use("/notifications", notificationRoutes);
+app.use("/auth/customer", customerAuthRoutes);
+app.use("/auth/business", businessAuthRoutes);
+app.use("/seller/onboarding", sellerOnboardingRoutes);
 
 app.get("/", (req, res) => {
   res.json({
