@@ -1113,7 +1113,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": \"PRODUCT_ID_HERE\"\n}",
+              "raw": "{\n  \"productId\": \"6aa91b5ceb110981a58a78ac\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1534,6 +1534,1175 @@
                 "admin",
                 "email-templates",
                 "YOUR_TEMPLATE_ID"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller Onboarding",
+      "item": [
+        {
+          "name": "Send Mobile OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+919876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/seller/onboarding/mobile/send-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "seller",
+                "onboarding",
+                "mobile",
+                "send-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Mobile OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+919876543210\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/seller/onboarding/mobile/verify-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "seller",
+                "onboarding",
+                "mobile",
+                "verify-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register Complete B2C Seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalInfo\": {\n    \"fullName\": \"John Doe\",\n    \"mobile\": \"+919876543210\",\n    \"email\": \"john.doe@example.com\",\n    \"dateOfBirth\": \"1990-01-01\",\n    \"pan\": \"ABCDE1234F\",\n    \"residentialAddress\": {\n      \"street\": \"123 Main St\",\n      \"city\": \"Mumbai\",\n      \"state\": \"MH\",\n      \"zipCode\": \"400001\",\n      \"country\": \"India\"\n    }\n  },\n  \"businessInfo\": {\n    \"businessName\": \"Doe Enterprises\",\n    \"businessType\": \"SOLE_PROPRIETORSHIP\",\n    \"sellerType\": \"RETAILER\",\n    \"gstin\": \"27ABCDE1234F1Z5\",\n    \"businessAddress\": {\n      \"street\": \"1\",\n      \"city\": \"A\",\n      \"state\": \"B\",\n      \"zipCode\": \"C\",\n      \"country\": \"D\"\n    },\n    \"pickupAddress\": {\n      \"street\": \"1\",\n      \"city\": \"A\",\n      \"state\": \"B\",\n      \"zipCode\": \"C\",\n      \"country\": \"D\"\n    },\n    \"categories\": [\n      \"Electronics\"\n    ],\n    \"brands\": [\n      \"BrandA\"\n    ]\n  },\n  \"bankingInfo\": {\n    \"accountHolderName\": \"John Doe\",\n    \"bankName\": \"State Bank of India\",\n    \"accountNumber\": \"12345678901\",\n    \"ifsc\": \"SBIN0001234\",\n    \"bankDocumentUrl\": \"https://example.com/cheque.pdf\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/seller/onboarding/register-complete",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "seller",
+                "onboarding",
+                "register-complete"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics\",\n  \"slug\": \"electronics\",\n  \"description\": \"All electronic devices\",\n  \"isActive\": true,\n  \"sortOrder\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/categories",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ],
+              "port": "5000"
+            }
+          }
+        },
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "description": "Optional for public"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/categories",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ],
+              "port": "5000"
+            }
+          }
+        },
+        {
+          "name": "Get Category By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "description": "Optional for public"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/categories/6aa8f11e33cfcc487fff8c5e",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "6aa8f11e33cfcc487fff8c5e"
+              ],
+              "port": "5000"
+            }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics Updated\",\n  \"description\": \"Updated description\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/categories/6aa8f11e33cfcc487fff8c5e",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "6aa8f11e33cfcc487fff8c5e"
+              ],
+              "port": "5000"
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/categories/6aa8f11e33cfcc487fff8c5e",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "6aa8f11e33cfcc487fff8c5e"
+              ],
+              "port": "5000"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Brands",
+      "item": [
+        {
+          "name": "Create Brand",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Samsung\",\n  \"slug\": \"samsung\",\n  \"description\": \"South Korean multinational manufacturing conglomerate.\",\n  \"isActive\": true,\n  \"sortOrder\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/brands",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "brands"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Brands",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "description": "Optional for public"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/brands",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "brands"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Brand By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "description": "Optional for public"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/brands/BRAND_ID_HERE",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "brands",
+                "BRAND_ID_HERE"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Brand",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Samsung Electronics\",\n  \"description\": \"Updated description\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/brands/BRAND_ID_HERE",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "brands",
+                "BRAND_ID_HERE"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Brand",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/brands/BRAND_ID_HERE",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "brands",
+                "BRAND_ID_HERE"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Product\",\n  \"slug\": \"test-product\",\n  \"description\": \"A great product\",\n  \"shortDescription\": \"Great product\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"categoryId\": \"6aa8e0e85df1ad146ba015fe\",\n  \"sku\": \"TEST-SKU-1\",\n  \"price\": 999,\n  \"currency\": \"INR\",\n  \"tags\": [\n    \"test\",\n    \"product\"\n  ],\n  \"productType\": \"simple\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "description": "Optional for public"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "description": "Optional for public"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products",
+                "6aa91b5ceb110981a58a78ac"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 899,\n  \"salePrice\": 799\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products",
+                "6aa91b5ceb110981a58a78ac"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products",
+                "6aa91b5ceb110981a58a78ac"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Images",
+          "item": [
+            {
+              "name": "Create Product Image",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://example.com/image.jpg\",\n  \"altText\": \"Front view\",\n  \"isPrimary\": true,\n  \"sortOrder\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/images",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "images"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Variant Image",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"variantId\": \"6aa91bc6fd1dfea0f2fe4d28\",\n  \"url\": \"https://example.com/variant.jpg\",\n  \"isPrimary\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/images",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "images"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Product Images",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/images",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "images"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Product Image By Id",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "product-images",
+                    "6aa91bc6fd1dfea0f2fe4d2a"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Product Image",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"altText\": \"Updated alt text\",\n  \"sortOrder\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "product-images",
+                    "6aa91bc6fd1dfea0f2fe4d2a"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Set Primary Image",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a/primary",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "product-images",
+                    "6aa91bc6fd1dfea0f2fe4d2a",
+                    "primary"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Product Image",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "product-images",
+                    "6aa91bc6fd1dfea0f2fe4d2a"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inventory",
+          "item": [
+            {
+              "name": "Create Product Inventory",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 100,\n  \"reservedQuantity\": 5,\n  \"manageStock\": true,\n  \"lowStockThreshold\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/inventory",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "inventory"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Product Inventory",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/inventory",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "inventory"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Variant Inventory",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 50,\n  \"reservedQuantity\": 0,\n  \"manageStock\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/variants/6aa9255916b53d9055234395/inventory",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "variants",
+                    "6aa9255916b53d9055234395",
+                    "inventory"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Inventory By ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "inventory",
+                    "6aa92576dd23409cfc369a18"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Inventory",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 120\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "inventory",
+                    "6aa92576dd23409cfc369a18"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Adjust Inventory",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"adjustment\": -3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18/adjust",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "inventory",
+                    "6aa92576dd23409cfc369a18",
+                    "adjust"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Inventory",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "inventory",
+                    "6aa92576dd23409cfc369a18"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create External Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"External Item\",\n  \"slug\": \"external-item\",\n  \"description\": \"Desc\",\n  \"shortDescription\": \"Short\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"categoryId\": \"6aa8e0e85df1ad146ba015fe\",\n  \"sku\": \"EXT-001\",\n  \"price\": 50,\n  \"productType\": \"external\",\n  \"externalUrl\": \"https://example.com/buy\",\n  \"buttonText\": \"Buy from Partner\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Variable Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Variable Item\",\n  \"slug\": \"variable-item\",\n  \"description\": \"Desc\",\n  \"shortDescription\": \"Short\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"categoryId\": \"6aa8e0e85df1ad146ba015fe\",\n  \"sku\": \"VAR-001\",\n  \"price\": 200,\n  \"productType\": \"variable\",\n  \"attributes\": [\n    {\n      \"name\": \"Size\",\n      \"options\": [\"S\", \"M\", \"L\"]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product Variants",
+      "item": [
+        {
+          "name": "Create Variant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"TSHIRT-RED-M\",\n  \"attributes\": [\n    {\n      \"name\": \"Color\",\n      \"value\": \"Red\"\n    },\n    {\n      \"name\": \"Size\",\n      \"value\": \"M\"\n    }\n  ],\n  \"price\": 500,\n  \"status\": \"draft\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/variants",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products",
+                "6aa91b5ceb110981a58a78ac",
+                "variants"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Variants for Product",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "description": "Optional for public"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/variants",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products",
+                "6aa91b5ceb110981a58a78ac",
+                "variants"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Variant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 450,\n  \"salePrice\": 400,\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/variants/6aa91bc6fd1dfea0f2fe4d28",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "variants",
+                "6aa91bc6fd1dfea0f2fe4d28"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Archive Variant",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/variants/6aa91bc6fd1dfea0f2fe4d28",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "variants",
+                "6aa91bc6fd1dfea0f2fe4d28"
               ]
             }
           }

@@ -5,6 +5,7 @@ const GstinVerification = require("../models/GstinVerification");
 const BankVerification = require("../models/BankVerification");
 const RoleHasUser = require("../models/RoleHasUser");
 const Role = require("../models/Role");
+const B2CSellerProfile = require("../models/B2CSellerProfile");
 const { verifyPAN: verifyPanService } = require("../services/panVerificationService");
 const { verifyGSTIN: verifyGstService } = require("../services/gstVerificationService");
 const { verifyBankAccount: verifyBankService } = require("../services/bankVerificationService");
@@ -396,10 +397,151 @@ const verifyBankAccount = async (req, res) => {
   }
 };
 
+const registerCompleteB2CSeller = async (req, res) => {
+  try {
+    const userId = req.b2cSeller?.id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const sellerRole = await Role.findOne({ slug: "b2c-seller" });
+    if (!sellerRole) {
+      return res.status(500).json({ success: false, message: "Role configuration error" });
+    }
+
+    const hasRole = await RoleHasUser.findOne({ role_id: sellerRole.id, user_id: userId });
+    if (!hasRole) {
+      return res.status(403).json({ success: false, message: "Forbidden: Not a B2C Seller" });
+    }
+
+    const { personalInfo, businessInfo, bankingInfo } = req.body;
+
+    if (!personalInfo || !businessInfo || !bankingInfo) {
+      return res.status(400).json({ success: false, message: "Missing personalInfo, businessInfo, or bankingInfo" });
+    }
+
+    let profile = await B2CSellerProfile.findOne({ userId });
+
+    if (profile) {
+      // Update existing profile
+      profile.personalInfo = { ...profile.personalInfo, ...personalInfo };
+      profile.businessInfo = { ...profile.businessInfo, ...businessInfo };
+      profile.bankingInfo = { ...profile.bankingInfo, ...bankingInfo };
+      await profile.save();
+    } else {
+      // Create new profile
+      profile = new B2CSellerProfile({
+        userId,
+        personalInfo,
+        businessInfo,
+        bankingInfo,
+        status: "UNDER_REVIEW"
+      });
+      await profile.save();
+    }
+
+    // Optionally update user details (like Name, Phone) if needed
+    const user = await User.findById(userId);
+    if (user && personalInfo) {
+      if (personalInfo.fullName) {
+        const names = personalInfo.fullName.split(" ");
+        user.firstName = names[0];
+        user.lastName = names.slice(1).join(" ");
+      }
+      if (personalInfo.mobile) user.phoneNumber = personalInfo.mobile;
+      if (personalInfo.email) user.email = personalInfo.email;
+      if (personalInfo.dateOfBirth) user.dateOfBirth = personalInfo.dateOfBirth;
+      await user.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "B2C Seller Registration submitted successfully",
+      profile,
+    });
+  } catch (error) {
+    console.error("registerCompleteB2CSeller Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const sendMobileOtp = async (req, res) => {
+  try {
+    const userId = req.b2cSeller?.id || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const { mobile } = req.body;
+    if (!mobile) return res.status(400).json({ success: false, message: "Mobile number is required" });
+
+    // Dummy OTP logic
+    const dummyOtp = "123456";
+    
+    // In a real application, you would send the OTP via SMS here and hash it in DB
+    const user = await User.findById(userId);
+    if (user) {
+      user.phoneNumber = mobile;
+      // Storing plain for dummy, normally you hash this
+      user.mobileOtpHash = dummyOtp; 
+      user.mobileOtpExpiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
+      await user.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully (Dummy: 123456)",
+      otp: dummyOtp // Returning here only for testing
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+const verifyMobileOtp = async (req, res) => {
+  try {
+    const userId = req.b2cSeller?.id || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const { mobile, otp } = req.body;
+    if (!mobile || !otp) return res.status(400).json({ success: false, message: "Mobile and OTP are required" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.phoneNumber !== mobile) {
+      return res.status(400).json({ success: false, message: "Mobile number mismatch" });
+    }
+
+    // Dummy verify logic
+    if (otp !== "123456" && otp !== user.mobileOtpHash) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    user.isMobileVerified = true;
+    user.mobileOtpHash = null;
+    user.mobileOtpExpiresAt = null;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Mobile verified successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getSellerProfile,
   submitStep1,
   verifyPAN,
   verifyGSTIN,
   verifyBankAccount,
+  registerCompleteB2CSeller,
+  sendMobileOtp,
+  verifyMobileOtp,
 };
