@@ -268,7 +268,7 @@ const getVariants = async (req, res) => {
     const variantIds = variants.map(v => v._id);
 
     const inventories = await Inventory.find({ variantId: { $in: variantIds } });
-    const images = await ProductImage.find({ variantId: { $in: variantIds } }).sort({ sortOrder: 1 });
+    const images = await ProductImage.find({ variantId: { $in: variantIds }, status: "active" }).sort({ sortOrder: 1 });
 
     const invMap = {};
     inventories.forEach(i => invMap[i.variantId.toString()] = i);
@@ -382,7 +382,7 @@ const updateVariant = async (req, res) => {
       await inventory.save();
     }
 
-    const images = await ProductImage.find({ variantId: updatedVariant._id }).sort({ sortOrder: 1 });
+    const images = await ProductImage.find({ variantId: updatedVariant._id, status: "active" }).sort({ sortOrder: 1 });
     res.json(formatVariantResponse(updatedVariant, inventory, images, parentProduct));
   } catch (error) {
     if (error.code === 11000) return res.status(400).json({ message: "A variant with this SKU already exists" });

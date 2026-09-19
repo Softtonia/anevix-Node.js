@@ -20,14 +20,18 @@ const productVariantRoutes = require("./src/routes/productVariantRoutes.js");
 const productImageRoutes = require("./src/routes/productImageRoutes.js");
 const inventoryRoutes = require("./src/routes/inventoryRoutes.js");
 const { router: uploadRoutes } = require("./src/routes/uploadRoutes.js");
+const { initProductImageCleanup } = require("./src/utils/productImageCleanup.js");
 const path = require("path");
+const cors = require("cors");
 dotenv.config();
 
 const app = express();
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ strict: false }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
  connectDB();
+ initProductImageCleanup();
 
 app.use("/admin/email-templates", emailTemplateRoutes);
 app.use("/admin", adminRoutes);

@@ -12,7 +12,7 @@ const {
 } = require("../controllers/productImageController");
 
 const adminAuth = require("../middleware/adminAuth");
-const { upload } = require("./uploadRoutes");
+const { upload, trackUploadStream } = require("./uploadRoutes");
 
 const passiveAdminAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -50,7 +50,7 @@ const passiveAdminAuth = async (req, res, next) => {
 };
 
 // Nested routes starting with /api/products...
-router.post("/api/products/images/bulk", adminAuth, upload.array("images", 100), bulkCreateProductImages);
+router.post("/api/products/images/bulk", trackUploadStream, adminAuth, upload.array("images", 100), bulkCreateProductImages);
 router.post("/api/products/:productId/images/bulk-link", adminAuth, bulkLinkProductImages);
 router.post("/api/products/:productId/images", adminAuth, upload.single("image"), createProductImage);
 router.get("/api/products/:productId/images", passiveAdminAuth, getProductImages);

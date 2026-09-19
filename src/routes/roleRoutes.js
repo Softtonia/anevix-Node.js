@@ -11,11 +11,11 @@ const {
 const adminAuth = require('../middleware/adminAuth');
 
 router.route('/')
-  .get(adminAuth, getRoles)
+  .get(getRoles)
   .post(adminAuth, createRole);
 
 router.route('/:id')
-  .get(adminAuth, getRole)
+  .get(getRole)
   .put(adminAuth, updateRole)
   .delete(adminAuth, deleteRole);
 

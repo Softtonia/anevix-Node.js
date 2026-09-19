@@ -70,6 +70,11 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    lastEmailOtpSentAt: {
+      type: Date,
+      default: null,
+    },
+
     // Mobile OTP
     mobileOtpHash: {
       type: String,
@@ -77,6 +82,11 @@ const userSchema = new mongoose.Schema(
     },
 
     mobileOtpExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
+    lastMobileOtpSentAt: {
       type: Date,
       default: null,
     },

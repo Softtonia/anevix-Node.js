@@ -60,13 +60,23 @@ const createProductImage = async (req, res) => {
     const parsedSortOrder = sortOrder !== undefined ? parseInt(sortOrder, 10) : 0;
     const parsedIsPrimary = isPrimary === true || isPrimary === 'true';
 
+    // Derive sellerId if uploader is a seller
+    let sellerId = null;
+    const B2CSellerProfile = require("../models/B2CSellerProfile");
+    if (req.user?.id) {
+      const sellerProfile = await B2CSellerProfile.findOne({ userId: req.user.id });
+      if (sellerProfile) sellerId = sellerProfile._id;
+    }
+
     const image = new ProductImage({
       productId,
       variantId: variantId || null,
+      sellerId: sellerId || product.sellerId || null,
       url: imageUrl,
       altText,
       sortOrder: isNaN(parsedSortOrder) ? 0 : parsedSortOrder,
       isPrimary: false, // We handle primary logic safely below if requested
+      status: "active", // Explicitly server-controlled: client cannot inject status
     });
 
     await image.save();
@@ -105,8 +115,8 @@ const getProductImages = async (req, res) => {
       return res.status(400).json({ message: "Invalid product ID format" });
     }
 
-    // Only get images for this product, sorted by sortOrder then createdAt
-    const images = await ProductImage.find({ productId })
+    // Only get active images for this product, sorted by sortOrder then createdAt
+    const images = await ProductImage.find({ productId, status: "active" })
       .sort({ sortOrder: 1, createdAt: 1 })
       .populate('variantId', '_id sku attributes'); // Populate basic variant info
 
@@ -301,9 +311,12 @@ const bulkCreateProductImages = async (req, res) => {
       }
     }
 
-    if (!Array.isArray(items) || items.length !== req.files.length) {
+    // If items is not provided or empty, create default empty item metadata for each file
+    if (!Array.isArray(items) || items.length === 0) {
+      items = req.files.map(() => ({}));
+    } else if (items.length !== req.files.length) {
       for (const file of req.files) await safelyDeleteFile(file.path);
-      return res.status(400).json({ message: "The number of items metadata must match the number of uploaded files exactly" });
+      return res.status(400).json({ message: "When provided, the number of items metadata must match the number of uploaded files exactly" });
     }
 
     const summary = { total: req.files.length, successful: 0, failed: 0 };
@@ -316,76 +329,96 @@ const bulkCreateProductImages = async (req, res) => {
     // Group items by SKU to check for duplicate primary images in the same batch
     const primaryCountPerSku = {};
     for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+      const item = items[i] || {};
       if (!item.sku) continue;
       if (item.isPrimary === true || item.isPrimary === 'true') {
         primaryCountPerSku[item.sku] = (primaryCountPerSku[item.sku] || 0) + 1;
       }
     }
 
+    const B2CSellerProfile = require("../models/B2CSellerProfile");
+    let authenticatedSellerId = null;
+    if (req.user?.id) {
+      const sellerProfile = await B2CSellerProfile.findOne({ userId: req.user.id });
+      if (sellerProfile) authenticatedSellerId = sellerProfile._id;
+    }
+
     for (let i = 0; i < req.files.length; i++) {
       const file = req.files[i];
-      const item = items[i];
-      const sku = item.sku;
-
-      if (!sku) {
-        await safelyDeleteFile(file.path);
-        results.push({ sku: null, success: false, error: "SKU is required" });
-        summary.failed++;
-        continue;
-      }
+      const item = items[i] || {};
+      const sku = item.sku || null;
 
       // Reject if ambiguous primary images
-      if (primaryCountPerSku[sku] > 1 && (item.isPrimary === true || item.isPrimary === 'true')) {
+      if (sku && primaryCountPerSku[sku] > 1 && (item.isPrimary === true || item.isPrimary === 'true')) {
         await safelyDeleteFile(file.path);
         results.push({ sku, success: false, error: "Ambiguous mapping: multiple images marked as primary for the same SKU in this batch" });
         summary.failed++;
         continue;
       }
 
+      let imageRecord = null;
       try {
-        const product = await Product.findOne({ sku });
-        if (!product) {
-          await safelyDeleteFile(file.path);
-          results.push({ sku, success: false, error: "Product not found" });
-          summary.failed++;
-          continue;
-        }
+        const product = sku ? await Product.findOne({ sku }) : null;
 
         const isPrimary = item.isPrimary === true || item.isPrimary === 'true';
         const sortOrder = item.sortOrder !== undefined ? parseInt(item.sortOrder, 10) : 0;
         const altText = item.altText || null;
         const imageUrl = `${protocol}://${host}/uploads/${file.filename}`;
 
-        const image = new ProductImage({
-          productId: product._id,
+        // Derive sellerId from authenticated seller or product's sellerId
+        const finalSellerId = authenticatedSellerId || product?.sellerId || null;
+
+        // 1. Initial creation: status MUST be "temporary"
+        imageRecord = new ProductImage({
+          productId: product ? product._id : null,
           variantId: null,
+          sellerId: finalSellerId,
+          sku,
+          fileName: file.filename,
           url: imageUrl,
           altText,
           sortOrder: isNaN(sortOrder) ? 0 : sortOrder,
-          isPrimary: false // Handled safely below
+          isPrimary: false,
+          status: "temporary"
         });
 
-        await image.save();
+        await imageRecord.save();
 
-        if (isPrimary) {
+        // 2. Processing & verification step
+        // Verify file exists on disk and final URL is valid
+        await fsPromises.access(file.path);
+
+        // 3. Successful processing confirmation: transition status to "active"
+        imageRecord.status = "active";
+        await imageRecord.save();
+
+        if (isPrimary && product) {
           await ProductImage.updateMany({ productId: product._id, variantId: null }, { isPrimary: false });
-          image.isPrimary = true;
-          await image.save();
+          imageRecord.isPrimary = true;
+          await imageRecord.save();
         }
 
         results.push({
           sku,
-          productId: product._id,
-          imageId: image._id,
+          fileName: file.filename,
+          productId: product ? product._id : null,
+          imageId: imageRecord._id,
+          _id: imageRecord._id,
           url: imageUrl,
+          status: "active",
           success: true
         });
         summary.successful++;
 
       } catch (err) {
+        // Upload / processing failure: do NOT leave as active or leave lingering failed files
         await safelyDeleteFile(file.path);
-        results.push({ sku, success: false, error: err.message });
+        if (imageRecord && imageRecord._id) {
+          try {
+            await ProductImage.findByIdAndDelete(imageRecord._id);
+          } catch (_) {}
+        }
+        results.push({ sku, fileName: file ? file.filename : null, success: false, status: "failed", error: err.message });
         summary.failed++;
       }
     }
@@ -443,7 +476,8 @@ const bulkLinkProductImages = async (req, res) => {
         url: imgData.url,
         altText: imgData.altText || null,
         sortOrder: isNaN(parsedSortOrder) ? 0 : parsedSortOrder,
-        isPrimary: false
+        isPrimary: false,
+        status: "active"
       });
 
       await image.save({ session });

@@ -196,18 +196,60 @@ const createCompositeProduct = async (req, res) => {
       await inventory.save({ session });
     }
 
-    // 3. Create Product Images
+    // 3. Create / Link Product Images
+    const isAdmin = !!(req.admin || req.user?.role === 'admin');
     const createdProductImages = [];
     if (pImages && pImages.length > 0) {
       for (let i = 0; i < pImages.length; i++) {
         const imgData = pImages[i];
-        if (!imgData.url) throw new Error("Image url is required");
-        
+        const imageId = imgData.imageId || imgData._id;
+
+        if (imageId && mongoose.Types.ObjectId.isValid(imageId)) {
+          const existingImg = await ProductImage.findById(imageId).session(session);
+          if (!existingImg) throw new Error(`Referenced imageId '${imageId}' not found`);
+          if (existingImg.status === "failed") {
+            throw new Error(`Image '${imageId}' failed processing and cannot be attached to a product.`);
+          }
+          if (!isAdmin && existingImg.sellerId && existingImg.sellerId.toString() !== sellerId.toString()) {
+            throw new Error(`Unauthorized: image '${imageId}' belongs to another seller.`);
+          }
+          existingImg.productId = product._id;
+          existingImg.sellerId = sellerId;
+          existingImg.status = "active"; // Promoted to active upon attachment!
+          if (imgData.isPrimary !== undefined) existingImg.isPrimary = imgData.isPrimary || false;
+          existingImg.sortOrder = imgData.sortOrder !== undefined ? imgData.sortOrder : i;
+          await existingImg.save({ session });
+          createdProductImages.push(existingImg);
+          continue;
+        }
+
+        if (!imgData.url) throw new Error("Image url or imageId is required");
+
+        const existingByUrl = await ProductImage.findOne({ url: imgData.url }).session(session);
+        if (existingByUrl) {
+          if (existingByUrl.status === "failed") {
+            throw new Error(`Image with URL '${imgData.url}' failed processing and cannot be attached to a product.`);
+          }
+          if (!isAdmin && existingByUrl.sellerId && existingByUrl.sellerId.toString() !== sellerId.toString()) {
+            throw new Error(`Unauthorized: image with URL '${imgData.url}' belongs to another seller.`);
+          }
+          existingByUrl.productId = product._id;
+          existingByUrl.sellerId = sellerId;
+          existingByUrl.status = "active"; // Promoted to active upon attachment!
+          if (imgData.isPrimary !== undefined) existingByUrl.isPrimary = imgData.isPrimary || false;
+          existingByUrl.sortOrder = imgData.sortOrder !== undefined ? imgData.sortOrder : i;
+          await existingByUrl.save({ session });
+          createdProductImages.push(existingByUrl);
+          continue;
+        }
+
         const prodImg = new ProductImage({
           productId: product._id,
+          sellerId,
           url: imgData.url,
           isPrimary: imgData.isPrimary || false,
-          sortOrder: i
+          sortOrder: imgData.sortOrder !== undefined ? imgData.sortOrder : i,
+          status: "active"
         });
         await prodImg.save({ session });
         createdProductImages.push(prodImg);
@@ -263,19 +305,62 @@ const createCompositeProduct = async (req, res) => {
           await inventory.save({ session });
         }
 
-        // 6. Create Variant Images
+        // 6. Create / Link Variant Images
         const createdVariantImages = [];
         if (vData.images && Array.isArray(vData.images)) {
           for (let j = 0; j < vData.images.length; j++) {
             const vImgData = vData.images[j];
-            if (!vImgData.url) throw new Error(`Variant image url missing for sku ${vData.sku}`);
-            
+            const vImageId = vImgData.imageId || vImgData._id;
+
+            if (vImageId && mongoose.Types.ObjectId.isValid(vImageId)) {
+              const existingVImg = await ProductImage.findById(vImageId).session(session);
+              if (!existingVImg) throw new Error(`Referenced variant imageId '${vImageId}' not found`);
+              if (existingVImg.status === "failed") {
+                throw new Error(`Variant image '${vImageId}' failed processing and cannot be attached.`);
+              }
+              if (!isAdmin && existingVImg.sellerId && existingVImg.sellerId.toString() !== sellerId.toString()) {
+                throw new Error(`Unauthorized: variant image '${vImageId}' belongs to another seller.`);
+              }
+              existingVImg.productId = product._id;
+              existingVImg.variantId = variant._id;
+              existingVImg.sellerId = sellerId;
+              existingVImg.status = "active"; // Promoted to active upon attachment!
+              if (vImgData.isPrimary !== undefined) existingVImg.isPrimary = vImgData.isPrimary || false;
+              existingVImg.sortOrder = vImgData.sortOrder !== undefined ? vImgData.sortOrder : j;
+              await existingVImg.save({ session });
+              createdVariantImages.push(existingVImg);
+              continue;
+            }
+
+            if (!vImgData.url) throw new Error(`Variant image url or imageId missing for sku ${vData.sku}`);
+
+            const existingByUrl = await ProductImage.findOne({ url: vImgData.url }).session(session);
+            if (existingByUrl) {
+              if (existingByUrl.status === "failed") {
+                throw new Error(`Variant image with URL '${vImgData.url}' failed processing and cannot be attached.`);
+              }
+              if (!isAdmin && existingByUrl.sellerId && existingByUrl.sellerId.toString() !== sellerId.toString()) {
+                throw new Error(`Unauthorized: variant image with URL '${vImgData.url}' belongs to another seller.`);
+              }
+              existingByUrl.productId = product._id;
+              existingByUrl.variantId = variant._id;
+              existingByUrl.sellerId = sellerId;
+              existingByUrl.status = "active"; // Promoted to active upon attachment!
+              if (vImgData.isPrimary !== undefined) existingByUrl.isPrimary = vImgData.isPrimary || false;
+              existingByUrl.sortOrder = vImgData.sortOrder !== undefined ? vImgData.sortOrder : j;
+              await existingByUrl.save({ session });
+              createdVariantImages.push(existingByUrl);
+              continue;
+            }
+
             const vImg = new ProductImage({
               productId: product._id,
               variantId: variant._id,
+              sellerId,
               url: vImgData.url,
               isPrimary: vImgData.isPrimary || false,
-              sortOrder: j
+              sortOrder: vImgData.sortOrder !== undefined ? vImgData.sortOrder : j,
+              status: "active"
             });
             await vImg.save({ session });
             createdVariantImages.push(vImg);

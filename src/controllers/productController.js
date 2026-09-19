@@ -380,24 +380,68 @@ const createProduct = async (req, res) => {
         });
         await inventoryRecord.save({ session });
       }
-      
-      await session.commitTransaction();
-      session.endSession();
-      
+
+      const isAdmin = !!(req.admin || req.user?.role === 'admin');
       let productImgs = [];
       
-      // 1. If thumbnail is explicitly passed, save it as the primary image
-      if (thumbnail && typeof thumbnail === 'string') {
-        const thumbImage = new ProductImage({
-          productId: createdProduct._id,
-          variantId: null,
-          url: thumbnail,
-          altText: 'Thumbnail',
-          sortOrder: 0,
-          isPrimary: true
-        });
-        await thumbImage.save();
-        productImgs.push(thumbImage);
+      // 1. If thumbnail is explicitly passed
+      if (thumbnail) {
+        let thumbUrl = null;
+        if (typeof thumbnail === 'string') {
+          // Check if thumbnail matches an existing ProductImage by ID or URL
+          if (mongoose.Types.ObjectId.isValid(thumbnail)) {
+            const existingThumb = await ProductImage.findById(thumbnail).session(session);
+            if (existingThumb) {
+              if (existingThumb.status === "failed") {
+                throw new Error(`Thumbnail image failed processing and cannot be attached to a product.`);
+              }
+              // Validate seller ownership
+              if (!isAdmin && existingThumb.sellerId && existingThumb.sellerId.toString() !== sellerId.toString()) {
+                throw new Error(`Unauthorized: thumbnail image belongs to another seller.`);
+              }
+              existingThumb.productId = createdProduct._id;
+              existingThumb.sellerId = sellerId;
+              existingThumb.status = "active"; // Promoted to active upon attachment!
+              existingThumb.isPrimary = true;
+              existingThumb.sortOrder = 0;
+              await existingThumb.save({ session });
+              productImgs.push(existingThumb);
+              thumbUrl = existingThumb.url;
+            }
+          }
+          if (!thumbUrl) {
+            // Check by URL
+            const existingByUrl = await ProductImage.findOne({ url: thumbnail }).session(session);
+            if (existingByUrl) {
+              if (existingByUrl.status === "failed") {
+                throw new Error(`Thumbnail image failed processing and cannot be attached to a product.`);
+              }
+              if (!isAdmin && existingByUrl.sellerId && existingByUrl.sellerId.toString() !== sellerId.toString()) {
+                throw new Error(`Unauthorized: thumbnail image belongs to another seller.`);
+              }
+              existingByUrl.productId = createdProduct._id;
+              existingByUrl.sellerId = sellerId;
+              existingByUrl.status = "active"; // Promoted to active upon attachment!
+              existingByUrl.isPrimary = true;
+              existingByUrl.sortOrder = 0;
+              await existingByUrl.save({ session });
+              productImgs.push(existingByUrl);
+            } else {
+              const thumbImage = new ProductImage({
+                productId: createdProduct._id,
+                variantId: null,
+                sellerId,
+                url: thumbnail,
+                altText: 'Thumbnail',
+                sortOrder: 0,
+                isPrimary: true,
+                status: "active"
+              });
+              await thumbImage.save({ session });
+              productImgs.push(thumbImage);
+            }
+          }
+        }
       }
 
       // 2. Combine images and videos lists
@@ -409,23 +453,94 @@ const createProduct = async (req, res) => {
       for (let i = 0; i < additionalMedia.length; i++) {
         const item = additionalMedia[i];
         const mediaData = typeof item === 'string' ? { url: item } : (item || {});
+        const imageId = mediaData.imageId || mediaData._id;
+
+        // If imageId is provided, validate ProductImage._id, ownership, and promote to active
+        if (imageId && mongoose.Types.ObjectId.isValid(imageId)) {
+          const existingImg = await ProductImage.findById(imageId).session(session);
+          if (!existingImg) {
+            throw new Error(`Referenced imageId '${imageId}' not found`);
+          }
+          if (existingImg.status === "failed") {
+            throw new Error(`Image '${imageId}' failed processing and cannot be attached to a product.`);
+          }
+          if (!isAdmin && existingImg.sellerId && existingImg.sellerId.toString() !== sellerId.toString()) {
+            throw new Error(`Unauthorized: image '${imageId}' belongs to another seller.`);
+          }
+
+          existingImg.productId = createdProduct._id;
+          existingImg.sellerId = sellerId;
+          existingImg.status = "active"; // Promoted to active upon attachment!
+          if (mediaData.altText !== undefined) existingImg.altText = mediaData.altText;
+          if (mediaData.sortOrder !== undefined) {
+            const so = parseInt(mediaData.sortOrder, 10);
+            if (!isNaN(so)) existingImg.sortOrder = so;
+          }
+          if (mediaData.isPrimary !== undefined) {
+            existingImg.isPrimary = mediaData.isPrimary === true || mediaData.isPrimary === 'true';
+          }
+          await existingImg.save({ session });
+          productImgs.push(existingImg);
+          continue;
+        }
+
         if (!mediaData.url) continue;
 
-        // If thumbnail wasn't provided, first item becomes primary
+        // Check if an existing ProductImage matches this URL
+        const existingByUrl = await ProductImage.findOne({ url: mediaData.url }).session(session);
+        if (existingByUrl) {
+          if (existingByUrl.status === "failed") {
+            throw new Error(`Image with URL '${mediaData.url}' failed processing and cannot be attached to a product.`);
+          }
+          if (!isAdmin && existingByUrl.sellerId && existingByUrl.sellerId.toString() !== sellerId.toString()) {
+            throw new Error(`Unauthorized: image with URL '${mediaData.url}' belongs to another seller.`);
+          }
+          // If already bound to another product, do not hijack it; create a new record
+          if (existingByUrl.productId && existingByUrl.productId.toString() !== createdProduct._id.toString()) {
+            const sharedImg = new ProductImage({
+              productId: createdProduct._id,
+              variantId: null,
+              sellerId,
+              url: mediaData.url,
+              altText: mediaData.altText || existingByUrl.altText || null,
+              sortOrder: mediaData.sortOrder !== undefined ? parseInt(mediaData.sortOrder, 10) : (i + 1),
+              isPrimary: !thumbnail && i === 0,
+              status: "active"
+            });
+            await sharedImg.save({ session });
+            productImgs.push(sharedImg);
+          } else {
+            existingByUrl.productId = createdProduct._id;
+            existingByUrl.sellerId = sellerId;
+            existingByUrl.status = "active"; // Promoted to active upon attachment!
+            if (mediaData.altText !== undefined) existingByUrl.altText = mediaData.altText;
+            await existingByUrl.save({ session });
+            productImgs.push(existingByUrl);
+          }
+          continue;
+        }
+
+        // Backward compatibility: Create active image record for direct URL
         const isPrimary = !thumbnail && i === 0;
         const sortOrder = mediaData.sortOrder !== undefined ? parseInt(mediaData.sortOrder, 10) : (i + 1);
 
         const newMedia = new ProductImage({
           productId: createdProduct._id,
           variantId: null,
+          sellerId,
           url: mediaData.url,
           altText: mediaData.altText || null,
           sortOrder: isNaN(sortOrder) ? (i + 1) : sortOrder,
-          isPrimary: isPrimary
+          isPrimary: isPrimary,
+          status: "active"
         });
-        await newMedia.save();
+        await newMedia.save({ session });
         productImgs.push(newMedia);
       }
+
+      // COMMIT TRANSACTION ONLY AFTER ALL IMAGES AND PRODUCTS SUCCEED
+      await session.commitTransaction();
+      session.endSession();
       
       res.status(201).json(formatProductResponse(createdProduct, productImgs, inventoryRecord));
     } catch (saveError) {
@@ -465,7 +580,7 @@ const getProducts = async (req, res) => {
 
     const ProductImage = require("../models/ProductImage");
     const productIds = products.map((p) => p._id);
-    const allImages = await ProductImage.find({ productId: { $in: productIds } })
+    const allImages = await ProductImage.find({ productId: { $in: productIds }, status: "active" })
       .sort({ sortOrder: 1, createdAt: 1 })
       .lean();
 
@@ -502,7 +617,7 @@ const getProductById = async (req, res) => {
       return res.status(404).json({ message: "Product not found" }); // Hide inactive from public
     }
 
-    const images = await ProductImage.find({ productId: product._id })
+    const images = await ProductImage.find({ productId: product._id, status: "active" })
       .sort({ sortOrder: 1, createdAt: 1 })
       .lean();
       
@@ -789,27 +904,99 @@ const updateProduct = async (req, res) => {
       await session.commitTransaction();
       session.endSession();
       
-      if (images && Array.isArray(images) && images.length > 0) {
+      if (images && Array.isArray(images)) {
+        const isAdmin = !!(req.admin || req.user?.role === 'admin');
+        const activeRetainedImageIds = [];
+
         for (let i = 0; i < images.length; i++) {
-          const imgData = images[i];
-          if (!imgData.url) continue;
+          const item = images[i];
+          const imgData = typeof item === 'string' ? { url: item } : (item || {});
+          const imageId = imgData.imageId || imgData._id;
           const isPrimary = imgData.isPrimary === true || imgData.isPrimary === 'true';
           const sortOrder = imgData.sortOrder !== undefined ? parseInt(imgData.sortOrder, 10) : i;
-          
+
           if (isPrimary) {
              await ProductImage.updateMany({ productId: updatedProduct._id, variantId: null }, { isPrimary: false });
           }
-          
+
+          // If imageId is provided, validate ProductImage._id, ownership, and promote to active
+          if (imageId && mongoose.Types.ObjectId.isValid(imageId)) {
+            const existingImg = await ProductImage.findById(imageId);
+            if (!existingImg) {
+              return res.status(404).json({ message: `Referenced imageId '${imageId}' not found` });
+            }
+            if (existingImg.status === "failed") {
+              return res.status(400).json({ message: `Image '${imageId}' failed processing and cannot be attached to a product.` });
+            }
+            if (!isAdmin && existingImg.sellerId && existingImg.sellerId.toString() !== updatedProduct.sellerId.toString()) {
+              return res.status(403).json({ message: `Unauthorized: image '${imageId}' belongs to another seller.` });
+            }
+
+            existingImg.productId = updatedProduct._id;
+            existingImg.sellerId = updatedProduct.sellerId;
+            existingImg.status = "active"; // Promoted to active upon attachment!
+            if (imgData.altText !== undefined) existingImg.altText = imgData.altText;
+            existingImg.sortOrder = isNaN(sortOrder) ? i : sortOrder;
+            existingImg.isPrimary = isPrimary;
+            await existingImg.save();
+            activeRetainedImageIds.push(existingImg._id);
+            continue;
+          }
+
+          if (!imgData.url) continue;
+
+          // Check if an existing ProductImage matches this URL
+          const existingByUrl = await ProductImage.findOne({ url: imgData.url });
+          if (existingByUrl) {
+            if (existingByUrl.status === "failed") {
+              return res.status(400).json({ message: `Image with URL '${imgData.url}' failed processing and cannot be attached to a product.` });
+            }
+            if (!isAdmin && existingByUrl.sellerId && existingByUrl.sellerId.toString() !== updatedProduct.sellerId.toString()) {
+              return res.status(403).json({ message: `Unauthorized: image with URL '${imgData.url}' belongs to another seller.` });
+            }
+            existingByUrl.productId = updatedProduct._id;
+            existingByUrl.sellerId = updatedProduct.sellerId;
+            existingByUrl.status = "active"; // Promoted to active upon attachment!
+            if (imgData.altText !== undefined) existingByUrl.altText = imgData.altText;
+            existingByUrl.sortOrder = isNaN(sortOrder) ? i : sortOrder;
+            existingByUrl.isPrimary = isPrimary;
+            await existingByUrl.save();
+            activeRetainedImageIds.push(existingByUrl._id);
+            continue;
+          }
+
           const newImage = new ProductImage({
             productId: updatedProduct._id,
             variantId: null,
+            sellerId: updatedProduct.sellerId,
             url: imgData.url,
             altText: imgData.altText || null,
             sortOrder: isNaN(sortOrder) ? i : sortOrder,
-            isPrimary: isPrimary
+            isPrimary: isPrimary,
+            status: "active"
           });
           await newImage.save();
+          activeRetainedImageIds.push(newImage._id);
         }
+
+        // Safe detach of omitted images:
+        // ProductImages previously attached to this product (at base level, variantId: null)
+        // that are not in the new activeRetainedImageIds are detached (productId: null, status: "temporary")
+        // so they don't remain attached to the gallery and can be safely cleaned up after 7 days
+        await ProductImage.updateMany(
+          {
+            productId: updatedProduct._id,
+            variantId: null,
+            _id: { $nin: activeRetainedImageIds }
+          },
+          {
+            $set: {
+              productId: null,
+              status: "temporary",
+              isPrimary: false
+            }
+          }
+        );
       }
       
       const productImgs = await ProductImage.find({ productId: updatedProduct._id })
@@ -856,13 +1043,58 @@ const deleteProduct = async (req, res) => {
       
       try {
         const ProductVariant = require("../models/ProductVariant");
+        const path = require("path");
+        const { safelyDeleteDiskFile } = require("../utils/productImageCleanup");
+
+        // 1. Delete associated variants and simple inventory
         await ProductVariant.deleteMany({ productId: id });
-        await Inventory.deleteMany({ productId: id }); // Clean up simple product inventory
+        await Inventory.deleteMany({ productId: id });
+
+        // 2. Cascade delete all ProductImage records associated with this product
+        const associatedImages = await ProductImage.find({ productId: id }).lean();
+        if (associatedImages.length > 0) {
+          const imageIds = associatedImages.map(img => img._id);
+          await ProductImage.deleteMany({ _id: { $in: imageIds } });
+
+          // 3. Safely delete physical files from uploads/ if not referenced by any other record
+          const uploadDir = path.resolve(process.cwd(), 'uploads');
+          for (const imgDoc of associatedImages) {
+            let filename = imgDoc.fileName;
+            if (!filename && imgDoc.url && imgDoc.url.includes('/uploads/')) {
+              try {
+                const parsed = new URL(imgDoc.url);
+                filename = path.basename(parsed.pathname);
+              } catch (_) {
+                filename = path.basename(imgDoc.url.split('/uploads/').pop().split('?')[0]);
+              }
+            }
+
+            if (filename && typeof filename === 'string') {
+              const sanitizedFilename = path.basename(filename);
+              const resolvedPath = path.resolve(uploadDir, sanitizedFilename);
+
+              if (resolvedPath.startsWith(uploadDir + path.sep)) {
+                // Ensure no other record references this file or URL
+                const isStillReferenced = await ProductImage.exists({
+                  _id: { $nin: imageIds },
+                  $or: [
+                    { fileName: sanitizedFilename },
+                    { url: imgDoc.url }
+                  ]
+                });
+
+                if (!isStillReferenced) {
+                  await safelyDeleteDiskFile(resolvedPath);
+                }
+              }
+            }
+          }
+        }
       } catch (e) {
-        // Models might not be fully initialized
+        console.error("[deleteProduct] Error during cascading cleanup:", e);
       }
 
-      return res.json({ message: "Product, variants, and inventory permanently deleted from database" });
+      return res.json({ message: "Product, variants, inventory, and images permanently deleted from database" });
     }
 
     const product = await Product.findById(id);

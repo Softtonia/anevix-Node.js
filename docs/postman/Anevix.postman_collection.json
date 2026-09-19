@@ -112,12 +112,7 @@
           "name": "Get All Roles",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{live}}/roles",
               "host": [
@@ -126,19 +121,15 @@
               "path": [
                 "roles"
               ]
-            }
+            },
+            "description": "Public endpoint: Fetch all available roles for registration and dropdowns without admin token"
           }
         },
         {
           "name": "Get Single Role",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{live}}/roles/1",
               "host": [
@@ -239,6 +230,134 @@
     {
       "name": "Auth - Customer",
       "item": [
+        {
+          "name": "Send Email OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@yopmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/send-email-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "send-email-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Email OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@yopmail.com\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/verify-email-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "verify-email-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Mobile OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/send-mobile-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "send-mobile-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Mobile OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"9876543210\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/verify-mobile-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "verify-mobile-otp"
+              ]
+            }
+          }
+        },
         {
           "name": "Send Registration OTP (Customer)",
           "request": {
@@ -356,7 +475,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\",\n  \"otp\": \"123456\"\n}",
+              "raw": "{\n  \"email\": \"customer@yopmail.com\",\n  \"otp\": \"123456\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -384,7 +503,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\",\n  \"otp\": \"123456\"\n}",
+              "raw": "{\n  \"phoneNumber\": \"1234567890\",\n  \"otp\": \"123456\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -409,10 +528,15 @@
           "name": "Resend Email OTP (Customer)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\"\n}",
+              "raw": "{\n  \"email\": \"customer@yopmail.com\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -428,6 +552,39 @@
                 "auth",
                 "customer",
                 "resend-email-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Mobile OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/resend-mobile-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "resend-mobile-otp"
               ]
             }
           },
@@ -523,6 +680,134 @@
     {
       "name": "Auth - Business",
       "item": [
+        {
+          "name": "Send Email OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"business@yopmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/send-email-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "send-email-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Email OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"business@yopmail.com\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/verify-email-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "verify-email-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Mobile OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"0987654321\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/send-mobile-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "send-mobile-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Mobile OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"0987654321\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/verify-mobile-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "verify-mobile-otp"
+              ]
+            }
+          }
+        },
         {
           "name": "Send Registration OTP (Business)",
           "request": {
@@ -640,7 +925,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\",\n  \"otp\": \"123456\"\n}",
+              "raw": "{\n  \"email\": \"business@yopmail.com\",\n  \"otp\": \"123456\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -668,7 +953,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\",\n  \"otp\": \"123456\"\n}",
+              "raw": "{\n  \"phoneNumber\": \"0987654321\",\n  \"otp\": \"123456\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -693,10 +978,15 @@
           "name": "Resend Email OTP (Business)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\"\n}",
+              "raw": "{\n  \"email\": \"business@yopmail.com\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -712,6 +1002,39 @@
                 "auth",
                 "business",
                 "resend-email-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Mobile OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"0987654321\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/resend-mobile-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "resend-mobile-otp"
               ]
             }
           },
@@ -2582,7 +2905,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"price\": 899,\n  \"salePrice\": 799\n}",
+              "raw": "{\n  \"price\": 899,\n  \"salePrice\": 799,\n  \"images\": [\n    {\n      \"imageId\": \"6aa91bc6fd1dfea0f2fe4d2a\",\n      \"isPrimary\": true,\n      \"sortOrder\": 0,\n      \"altText\": \"Primary angle\"\n    },\n    {\n      \"imageId\": \"6aa91bc6fd1dfea0f2fe4d2b\",\n      \"isPrimary\": false,\n      \"sortOrder\": 1,\n      \"altText\": \"Secondary angle\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2600,7 +2923,8 @@
                 "products",
                 "6aa91b5ceb110981a58a78ac"
               ]
-            }
+            },
+            "description": "Update product details or replace product gallery images. Passing images array with imageId attaches/retains specified images and safely detaches omitted images."
           }
         },
         {
@@ -2630,6 +2954,55 @@
         {
           "name": "Images",
           "item": [
+            {
+              "name": "Bulk Create Product Images (Staging)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-Upload-ID",
+                    "value": "{{CURRENT_UPLOAD_ID}}",
+                    "type": "text",
+                    "description": "Optional: Pass uploadId from /api/upload/init to track live progress via SSE"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "images",
+                      "type": "file",
+                      "src": []
+                    },
+                    {
+                      "key": "images",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/products/images/bulk",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "images",
+                    "bulk"
+                  ]
+                },
+                "description": "Upload multiple images directly (no metadata required). Supports live progress via X-Upload-ID. Returns imageId and status='active' for each uploaded image to attach when creating or updating products."
+              }
+            },
             {
               "name": "Bulk Link Product Images",
               "request": {
@@ -3240,6 +3613,23 @@
       "item": [
         {
           "name": "Upload Thumbnail Image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.imageId) {",
+                  "    pm.environment.set(\"CURRENT_THUMBNAIL_IMAGE_ID\", jsonData.imageId);",
+                  "}",
+                  "if (jsonData.thumbnail) {",
+                  "    pm.environment.set(\"CURRENT_THUMBNAIL_URL\", jsonData.thumbnail);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [],
@@ -3266,7 +3656,7 @@
                 "thumbnail"
               ]
             },
-            "description": "Upload single primary thumbnail image"
+            "description": "Upload single primary thumbnail image. Creates a ProductImage with status 'temporary', returning imageId, thumbnail URL, and status. Automatically promoted to 'active' once attached to a product."
           }
         },
         {
@@ -3306,10 +3696,16 @@
           }
         },
         {
-          "name": "Step 2 - Batch Upload Media (With X-Upload-ID)",
+          "name": "Step 2 - Batch Upload Media (With X-Upload-ID & Image IDs)",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text",
+                "description": "Optional: Pass token to automatically associate uploaded images with your seller profile"
+              },
               {
                 "key": "X-Upload-ID",
                 "value": "{{CURRENT_UPLOAD_ID}}",
@@ -3346,7 +3742,7 @@
                 "batch"
               ]
             },
-            "description": "Upload multiple images or videos. Backend tracks incoming bytes and pushes live updates to SSE and JSON progress endpoints."
+            "description": "Upload multiple images or videos directly with live progress tracking.\n\nLIFECYCLE:\n1. Incoming files are initially created with status: 'temporary'.\n2. Once verified and written to disk, status transitions to 'active'.\n3. The cleanup worker ONLY deletes files where status remains 'temporary' after 7 days; 'active' files are NEVER deleted.\n\nRESPONSE FORMAT:\n{\n  \"success\": true,\n  \"uploadId\": \"...\",\n  \"images\": [ \"http://localhost:5000/uploads/...\" ],\n  \"videos\": [ \"http://localhost:5000/uploads/...\" ],\n  \"imageRecords\": [\n    {\n      \"imageId\": \"<mongodb_id>\",\n      \"url\": \"http://localhost:5000/uploads/...\",\n      \"fileName\": \"...\",\n      \"status\": \"active\"\n    }\n  ],\n  \"videoRecords\": [\n    {\n      \"videoId\": \"<mongodb_id>\",\n      \"url\": \"http://localhost:5000/uploads/...\",\n      \"fileName\": \"...\",\n      \"status\": \"active\"\n    }\n  ]\n}\n\nUse returned imageId or videoId values in createProduct or updateProduct: images: [{ \"imageId\": \"...\" }] / videos: [{ \"imageId\": \"...\" }]."
           }
         },
         {

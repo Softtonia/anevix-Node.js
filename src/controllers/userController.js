@@ -256,23 +256,116 @@ const initializeSellerRegistrationIfApplicable = async (userId) => {
 
 const verifyEmailOTP = async (req, res) => {
   try {
-    const { userId, otp } = req.body;
+    const { userId, email, otp } = req.body;
 
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is required",
+      });
+    }
+
+    if (!userId && !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email or User ID is required",
+      });
+    }
+
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+    // 1. If email is provided (or when user is not created yet)
+    if (email) {
+      const formattedEmail = email.toLowerCase().trim();
+
+      // Check pre-registration OTP first (when user is not created yet)
+      const preRegOtp = await PreRegistrationOtp.findOne({
+        contactValue: formattedEmail,
+        contactType: "email",
+      });
+
+      if (preRegOtp) {
+        if (new Date() > preRegOtp.expiresAt) {
+          return res.status(400).json({
+            success: false,
+            message: "OTP has expired. Please request a new one.",
+          });
+        }
+
+        if (preRegOtp.otpHash !== otpHash) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid OTP",
+          });
+        }
+
+        preRegOtp.isVerified = true;
+        await preRegOtp.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Email verified successfully! You can now complete registration.",
+        });
+      }
+
+      // Check if user already exists in User collection
+      const userByEmail = await User.findOne({ email: formattedEmail });
+      if (userByEmail) {
+        if (userByEmail.isEmailVerified) {
+          return res.status(400).json({
+            success: false,
+            message: "Email is already verified",
+          });
+        }
+
+        if (
+          userByEmail.emailOtpHash !== otpHash ||
+          !userByEmail.emailOtpExpiresAt ||
+          userByEmail.emailOtpExpiresAt < new Date()
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid or expired OTP",
+          });
+        }
+
+        userByEmail.isEmailVerified = true;
+        userByEmail.isAccountVerified = true;
+        userByEmail.status = "active";
+        userByEmail.emailOtpHash = null;
+        userByEmail.emailOtpExpiresAt = null;
+        await userByEmail.save();
+
+        await initializeSellerRegistrationIfApplicable(userByEmail._id);
+
+        return res.status(200).json({
+          success: true,
+          message: "Email verified successfully",
+        });
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: "No active verification OTP found for this email",
+      });
+    }
+
+    // 2. Fallback if userId is provided
     const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({
+        success: false,
         message: "User not found",
       });
     }
 
     if (user.isEmailVerified) {
       return res.status(400).json({
+        success: false,
         message: "Email is already verified",
       });
     }
-
-    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     if (
       user.emailOtpHash !== otpHash ||
@@ -280,6 +373,7 @@ const verifyEmailOTP = async (req, res) => {
       user.emailOtpExpiresAt < new Date()
     ) {
       return res.status(400).json({
+        success: false,
         message: "Invalid or expired OTP",
       });
     }
@@ -326,11 +420,106 @@ const verifyEmailOTP = async (req, res) => {
 
 const resendEmailOTP = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, email } = req.body;
 
-    if (!userId) {
+    if (!userId && !email) {
       return res.status(400).json({
-        message: "User ID is required",
+        success: false,
+        message: "User ID or Email is required",
+      });
+    }
+
+    let targetEmail = null;
+    let userName = "User";
+
+    if (email) {
+      targetEmail = email.toLowerCase().trim();
+      const existingUser = await User.findOne({ email: targetEmail });
+      if (existingUser) {
+        if (existingUser.isEmailVerified) {
+          return res.status(400).json({
+            success: false,
+            message: "Email is already verified",
+          });
+        }
+        if (existingUser.lastEmailOtpSentAt) {
+          const elapsed = Math.floor((Date.now() - new Date(existingUser.lastEmailOtpSentAt).getTime()) / 1000);
+          if (elapsed < 30) {
+            const remaining = 30 - elapsed;
+            return res.status(429).json({
+              success: false,
+              message: `Please wait ${remaining} second${remaining > 1 ? 's' : ''} before requesting a new OTP.`,
+              retryAfter: remaining,
+            });
+          }
+        }
+        userName = `${existingUser.firstName || ''} ${existingUser.lastName || ''}`.trim() || "User";
+        const otp = generateOTP();
+        const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+        existingUser.emailOtpHash = otpHash;
+        existingUser.emailOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        existingUser.lastEmailOtpSentAt = new Date();
+        await existingUser.save();
+
+        const template = await EmailTemplate.findOne({ key: "VERIFY_EMAIL" });
+        if (!template) {
+          return res.status(500).json({ success: false, message: "Email template VERIFY_EMAIL not found" });
+        }
+
+        let htmlBody = template.body;
+        htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
+        htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+        htmlBody = htmlBody.replace(/\{\{VerificationOTP\}\}/gi, otp);
+        htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
+
+        await sendEmail(
+          existingUser.email,
+          template.subject,
+          "Please view this email in an HTML-compatible client.",
+          htmlBody
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: "Verification OTP resent successfully",
+        });
+      }
+
+      // Pre-registration flow (user not created yet)
+      const otp = generateOTP();
+      const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+      await PreRegistrationOtp.findOneAndUpdate(
+        { contactValue: targetEmail, contactType: "email" },
+        {
+          otpHash,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+          isVerified: false,
+        },
+        { upsert: true, new: true }
+      );
+
+      const template = await EmailTemplate.findOne({ key: "VERIFY_EMAIL" });
+      if (!template) {
+        return res.status(500).json({ success: false, message: "Email template VERIFY_EMAIL not found" });
+      }
+
+      let htmlBody = template.body;
+      htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, "New User").replace(/\{\{user_name\}\}/gi, "New User");
+      htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+      htmlBody = htmlBody.replace(/\{\{VerificationOTP\}\}/gi, otp);
+      htmlBody = htmlBody.replace(/\{\{SupportEmail\}\}/gi, "support@anevix.com");
+
+      await sendEmail(
+        targetEmail,
+        template.subject,
+        "Please view this email in an HTML-compatible client.",
+        htmlBody
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Verification OTP resent successfully",
       });
     }
 
@@ -338,20 +527,35 @@ const resendEmailOTP = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
+        success: false,
         message: "User not found",
       });
     }
 
     if (!user.email) {
       return res.status(400).json({
+        success: false,
         message: "No email address is associated with this account",
       });
     }
 
     if (user.isEmailVerified) {
       return res.status(400).json({
+        success: false,
         message: "Email is already verified",
       });
+    }
+
+    if (user.lastEmailOtpSentAt) {
+      const elapsed = Math.floor((Date.now() - new Date(user.lastEmailOtpSentAt).getTime()) / 1000);
+      if (elapsed < 30) {
+        const remaining = 30 - elapsed;
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${remaining} second${remaining > 1 ? 's' : ''} before requesting a new OTP.`,
+          retryAfter: remaining,
+        });
+      }
     }
 
     const otp = generateOTP();
@@ -360,15 +564,16 @@ const resendEmailOTP = async (req, res) => {
 
     user.emailOtpHash = otpHash;
     user.emailOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    user.lastEmailOtpSentAt = new Date();
 
     await user.save();
 
     const template = await EmailTemplate.findOne({ key: "VERIFY_EMAIL" });
     if (!template) {
-      return res.status(500).json({ message: "Email template VERIFY_EMAIL not found" });
+      return res.status(500).json({ success: false, message: "Email template VERIFY_EMAIL not found" });
     }
 
-    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    userName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
     let htmlBody = template.body;
     htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, userName).replace(/\{\{user_name\}\}/gi, userName);
     htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
@@ -397,23 +602,117 @@ const resendEmailOTP = async (req, res) => {
 
 const verifyMobileOTP = async (req, res) => {
   try {
-    const { userId, otp } = req.body;
+    const { userId, phoneNumber, mobile, otp } = req.body;
+    const rawMobile = phoneNumber || mobile;
 
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is required",
+      });
+    }
+
+    if (!userId && !rawMobile) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID or Mobile number is required",
+      });
+    }
+
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+    // 1. If mobile/phoneNumber is provided
+    if (rawMobile) {
+      const formattedMobile = rawMobile.trim();
+
+      // Check pre-registration OTP first (when user is not created yet)
+      const preRegOtp = await PreRegistrationOtp.findOne({
+        contactValue: formattedMobile,
+        contactType: "mobile",
+      });
+
+      if (preRegOtp) {
+        if (new Date() > preRegOtp.expiresAt) {
+          return res.status(400).json({
+            success: false,
+            message: "OTP has expired. Please request a new one.",
+          });
+        }
+
+        if (preRegOtp.otpHash !== otpHash) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid OTP",
+          });
+        }
+
+        preRegOtp.isVerified = true;
+        await preRegOtp.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Mobile verified successfully! You can now complete registration.",
+        });
+      }
+
+      // Check if user already exists in User collection
+      const userByPhone = await User.findOne({ phoneNumber: formattedMobile });
+      if (userByPhone) {
+        if (userByPhone.isMobileVerified) {
+          return res.status(400).json({
+            success: false,
+            message: "Mobile number is already verified",
+          });
+        }
+
+        if (
+          userByPhone.mobileOtpHash !== otpHash ||
+          !userByPhone.mobileOtpExpiresAt ||
+          userByPhone.mobileOtpExpiresAt < new Date()
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid or expired OTP",
+          });
+        }
+
+        userByPhone.isMobileVerified = true;
+        userByPhone.isAccountVerified = true;
+        userByPhone.status = "active";
+        userByPhone.mobileOtpHash = null;
+        userByPhone.mobileOtpExpiresAt = null;
+        await userByPhone.save();
+
+        await initializeSellerRegistrationIfApplicable(userByPhone._id);
+
+        return res.status(200).json({
+          success: true,
+          message: "Mobile verified successfully",
+        });
+      }
+
+      return res.status(404).json({
+        success: false,
+        message: "No active verification OTP found for this mobile number",
+      });
+    }
+
+    // 2. Fallback if userId is provided
     const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({
+        success: false,
         message: "User not found",
       });
     }
 
     if (user.isMobileVerified) {
       return res.status(400).json({
+        success: false,
         message: "Mobile number is already verified",
       });
     }
-
-    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     if (
       user.mobileOtpHash !== otpHash ||
@@ -421,6 +720,7 @@ const verifyMobileOTP = async (req, res) => {
       user.mobileOtpExpiresAt < new Date()
     ) {
       return res.status(400).json({
+        success: false,
         message: "Invalid or expired OTP",
       });
     }
@@ -1067,12 +1367,34 @@ const addSavedPaymentMethod = async (req, res) => {
   }
 };
 
+// Helper to extract contact and type from request body flexibly
+const parseRegistrationContact = (body) => {
+  const contactType = body.contactType || (body.email ? "email" : (body.phoneNumber || body.mobile ? "mobile" : null));
+  const contactValue = body.contactValue || body.email || body.phoneNumber || body.mobile;
+  return { contactValue, contactType };
+};
+
+const sendRegistrationEmailOtp = async (req, res) => {
+  req.body.contactType = "email";
+  req.body.contactValue = req.body.email || req.body.contactValue;
+  return sendRegistrationOtp(req, res);
+};
+
+const sendRegistrationMobileOtp = async (req, res) => {
+  req.body.contactType = "mobile";
+  req.body.contactValue = req.body.phoneNumber || req.body.mobile || req.body.contactValue;
+  return sendRegistrationOtp(req, res);
+};
+
 const sendRegistrationOtp = async (req, res) => {
   try {
-    const { contactValue, contactType } = req.body;
+    const { contactValue, contactType } = parseRegistrationContact(req.body);
     
     if (!contactValue || !contactType || !["email", "mobile"].includes(contactType)) {
-      return res.status(400).json({ success: false, message: "Valid contactValue and contactType (email or mobile) are required." });
+      return res.status(400).json({ 
+        success: false, 
+        message: contactType === "email" ? "Valid email is required." : (contactType === "mobile" ? "Valid mobile number is required." : "Valid email or mobile number is required.")
+      });
     }
     
     const formattedContact = contactType === "email" ? contactValue.toLowerCase().trim() : contactValue.trim();
@@ -1081,6 +1403,20 @@ const sendRegistrationOtp = async (req, res) => {
     const existingUser = await User.findOne(contactType === "email" ? { email: formattedContact } : { phoneNumber: formattedContact });
     if (existingUser) {
       return res.status(400).json({ success: false, message: `User already exists with this ${contactType}.` });
+    }
+
+    // Rate limiting: allow resend only after 30 seconds
+    const existingOtpRecord = await PreRegistrationOtp.findOne({ contactValue: formattedContact, contactType });
+    if (existingOtpRecord && existingOtpRecord.updatedAt) {
+      const elapsedSeconds = Math.floor((Date.now() - new Date(existingOtpRecord.updatedAt).getTime()) / 1000);
+      if (elapsedSeconds < 30) {
+        const remaining = 30 - elapsedSeconds;
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${remaining} second${remaining > 1 ? 's' : ''} before requesting a new OTP.`,
+          retryAfter: remaining,
+        });
+      }
     }
 
     const otp = generateOTP();
@@ -1127,12 +1463,29 @@ const sendRegistrationOtp = async (req, res) => {
   }
 };
 
+const verifyRegistrationEmailOtp = async (req, res) => {
+  req.body.contactType = "email";
+  req.body.contactValue = req.body.email || req.body.contactValue;
+  return verifyRegistrationOtp(req, res);
+};
+
+const verifyRegistrationMobileOtp = async (req, res) => {
+  req.body.contactType = "mobile";
+  req.body.contactValue = req.body.phoneNumber || req.body.mobile || req.body.contactValue;
+  return verifyRegistrationOtp(req, res);
+};
+
 const verifyRegistrationOtp = async (req, res) => {
   try {
-    const { contactValue, contactType, otp } = req.body;
+    const { contactValue, contactType } = parseRegistrationContact(req.body);
+    const otp = req.body.otp;
     
-    if (!contactValue || !contactType || !otp) {
-      return res.status(400).json({ success: false, message: "contactValue, contactType, and otp are required." });
+    if (!otp) {
+      return res.status(400).json({ success: false, message: "OTP is required." });
+    }
+
+    if (!contactValue || !contactType) {
+      return res.status(400).json({ success: false, message: "Email or mobile number is required." });
     }
     
     const formattedContact = contactType === "email" ? contactValue.toLowerCase().trim() : contactValue.trim();
@@ -1160,6 +1513,125 @@ const verifyRegistrationOtp = async (req, res) => {
   }
 };
 
+// Resend Registration OTP handlers
+const resendRegistrationEmailOtp = async (req, res) => {
+  req.body.contactType = "email";
+  req.body.contactValue = req.body.email || req.body.contactValue;
+  return sendRegistrationOtp(req, res);
+};
+
+const resendRegistrationMobileOtp = async (req, res) => {
+  req.body.contactType = "mobile";
+  req.body.contactValue = req.body.phoneNumber || req.body.mobile || req.body.contactValue;
+  return sendRegistrationOtp(req, res);
+};
+
+const resendMobileOTP = async (req, res) => {
+  try {
+    const { userId, phoneNumber, mobile } = req.body;
+    const rawMobile = phoneNumber || mobile;
+
+    if (!rawMobile && !userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number or User ID is required",
+      });
+    }
+
+    if (rawMobile) {
+      const formattedMobile = rawMobile.trim();
+
+      // If user exists in User collection
+      const existingUser = await User.findOne({ phoneNumber: formattedMobile });
+      if (existingUser) {
+        if (existingUser.isMobileVerified) {
+          return res.status(400).json({
+            success: false,
+            message: "Mobile number is already verified",
+          });
+        }
+
+        if (existingUser.lastMobileOtpSentAt) {
+          const elapsed = Math.floor((Date.now() - new Date(existingUser.lastMobileOtpSentAt).getTime()) / 1000);
+          if (elapsed < 30) {
+            const remaining = 30 - elapsed;
+            return res.status(429).json({
+              success: false,
+              message: `Please wait ${remaining} second${remaining > 1 ? 's' : ''} before requesting a new OTP.`,
+              retryAfter: remaining,
+            });
+          }
+        }
+
+        const otp = generateOTP();
+        const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+        existingUser.mobileOtpHash = otpHash;
+        existingUser.mobileOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        existingUser.lastMobileOtpSentAt = new Date();
+        await existingUser.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Verification OTP resent to mobile successfully",
+          dummyMobileOtp: otp,
+        });
+      }
+
+      // Pre-registration flow
+      req.body.contactType = "mobile";
+      req.body.contactValue = formattedMobile;
+      return sendRegistrationOtp(req, res);
+    }
+
+    // Fallback if userId provided
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.isMobileVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number is already verified",
+      });
+    }
+
+    if (user.lastMobileOtpSentAt) {
+      const elapsed = Math.floor((Date.now() - new Date(user.lastMobileOtpSentAt).getTime()) / 1000);
+      if (elapsed < 30) {
+        const remaining = 30 - elapsed;
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${remaining} second${remaining > 1 ? 's' : ''} before requesting a new OTP.`,
+          retryAfter: remaining,
+        });
+      }
+    }
+
+    const otp = generateOTP();
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+    user.mobileOtpHash = otpHash;
+    user.mobileOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    user.lastMobileOtpSentAt = new Date();
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Verification OTP resent to mobile successfully",
+      dummyMobileOtp: otp,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   registerCustomer,
@@ -1171,6 +1643,7 @@ module.exports = {
   verifyMobileOTP,
   logoutUser,
   resendEmailOTP,
+  resendMobileOTP,
   deleteUser,
   editUser,
   forgotPassword,
@@ -1181,4 +1654,10 @@ module.exports = {
   addSavedPaymentMethod,
   sendRegistrationOtp,
   verifyRegistrationOtp,
+  sendRegistrationEmailOtp,
+  sendRegistrationMobileOtp,
+  verifyRegistrationEmailOtp,
+  verifyRegistrationMobileOtp,
+  resendRegistrationEmailOtp,
+  resendRegistrationMobileOtp,
 };
