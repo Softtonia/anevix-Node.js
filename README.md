@@ -16,3 +16,6 @@ npm run dev
 
 ## Structure
 The backend logic is organized within the `src` directory, containing controllers, middleware, models, routes, and seeders.
+
+## API Documentation
+You can find the complete API reference for Categories, Products, and Variants here: [API Reference](docs/api-reference.md)

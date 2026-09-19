@@ -1787,6 +1787,396 @@
       ]
     },
     {
+      "name": "Product Categories (New Hierarchy)",
+      "item": [
+        {
+          "name": "Create Top-Level Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cat_name\": \"Clothing\",\n  \"slug\": \"clothing\",\n  \"image\": \"https://example.com/clothing.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/product-categories",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Top-Level Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/product-categories",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Top-Level Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cat_name\": \"Clothing & Apparel\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/product-categories/6aabb9e07f05a228c645e53e",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-categories",
+                "6aabb9e07f05a228c645e53e"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Top-Level Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/product-categories/6aabb9e07f05a228c645e53e",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-categories",
+                "6aabb9e07f05a228c645e53e"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Sub-Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cat_id\": \"<INSERT_CAT_ID_HERE>\",\n  \"sub_cat_name\": \"Men's Wear\",\n  \"slug\": \"mens-wear\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/product-sub-categories",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-sub-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Sub-Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/product-sub-categories",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-sub-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Sub-Categories by cat_id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/product-sub-categories?cat_id=<INSERT_CAT_ID_HERE>",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-sub-categories"
+              ],
+              "query": [
+                {
+                  "key": "cat_id",
+                  "value": "<INSERT_CAT_ID_HERE>"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Sub-Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sub_cat_name\": \"Men Shoes\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/product-sub-categories/6aabb9e07f05a228c645e53f",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-sub-categories",
+                "6aabb9e07f05a228c645e53f"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Sub-Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/product-sub-categories/6aabb9e07f05a228c645e53f",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-sub-categories",
+                "6aabb9e07f05a228c645e53f"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Nested Sub-Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cat_id\": \"<INSERT_CAT_ID_HERE>\",\n  \"sub_cat_id\": \"<INSERT_SUB_CAT_ID_HERE>\",\n  \"name\": \"T-Shirts\",\n  \"slug\": \"mens-t-shirts\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/product-nested-sub-categories",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-nested-sub-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Nested Sub-Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/product-nested-sub-categories",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-nested-sub-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Nested Sub-Categories by IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/product-nested-sub-categories?cat_id=<INSERT_CAT_ID>&sub_cat_id=<INSERT_SUB_CAT_ID>",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-nested-sub-categories"
+              ],
+              "query": [
+                {
+                  "key": "cat_id",
+                  "value": "<INSERT_CAT_ID>"
+                },
+                {
+                  "key": "sub_cat_id",
+                  "value": "<INSERT_SUB_CAT_ID>"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Nested Sub-Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Casual Sneakers\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/product-nested-sub-categories/6aabb9e17f05a228c645e540",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-nested-sub-categories",
+                "6aabb9e17f05a228c645e540"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Nested Sub-Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/product-nested-sub-categories/6aabb9e17f05a228c645e540",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "product-nested-sub-categories",
+                "6aabb9e17f05a228c645e540"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Brands",
       "item": [
         {
@@ -1801,7 +2191,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Samsung\",\n  \"slug\": \"samsung\",\n  \"description\": \"South Korean multinational manufacturing conglomerate.\",\n  \"isActive\": true,\n  \"sortOrder\": 1\n}",
+              "raw": "{\n  \"name\": \"Nike Sportswear\",\n  \"slug\": \"nike-sportswear\",\n  \"description\": \"Sportswear items by Nike\",\n  \"image\": {\n    \"src\": \"https://example.com/nike.jpg\",\n    \"alt\": \"Nike Logo\"\n  },\n  \"parent\": null,\n  \"menu_order\": 0,\n  \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1882,7 +2272,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Samsung Electronics\",\n  \"description\": \"Updated description\"\n}",
+              "raw": "{\n  \"name\": \"Nike Premium Sportswear\",\n  \"description\": \"Premium sportswear items by Nike\",\n  \"image\": {\n    \"src\": \"https://example.com/nike-premium.jpg\",\n    \"alt\": \"Nike Premium Logo\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1926,6 +2316,38 @@
               ]
             }
           }
+        },
+        {
+          "name": "Get Products by Brand",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/brands/{{BRAND_ID}}/products?page=1&limit=10",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "brands",
+                "{{BRAND_ID}}",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -1944,7 +2366,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Test Product\",\n  \"slug\": \"test-product\",\n  \"description\": \"A great product\",\n  \"shortDescription\": \"Great product\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"categoryId\": \"6aa8e0e85df1ad146ba015fe\",\n  \"sku\": \"TEST-SKU-1\",\n  \"price\": 999,\n  \"currency\": \"INR\",\n  \"tags\": [\n    \"test\",\n    \"product\"\n  ],\n  \"productType\": \"simple\"\n}",
+              "raw": "{\n  \"name\": \"Men Leather Running Shoes Pro\",\n  \"slug\": \"men-leather-running-shoes-pro-2026\",\n  \"sku\": \"RUN-SHOES-PRO-01\",\n  \"productType\": \"simple\",\n  \"price\": 2999,\n  \"salePrice\": 2499,\n  \"currency\": \"INR\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"cat_id\": \"6aabb9e07f05a228c645e53e\",\n  \"sub_cat_id\": \"6aabb9e07f05a228c645e53f\",\n  \"nested_sub_cat_id\": \"6aabb9e17f05a228c645e540\",\n  \"thumbnail\": \"http://localhost:5000/uploads/1789717515264-253293279.png\",\n  \"images\": [\n    \"http://localhost:5000/uploads/1789717515277-887617187.png\",\n    \"http://localhost:5000/uploads/1789717515290-985337540.png\"\n  ],\n  \"videos\": [\n    \"http://localhost:5000/uploads/1789717515301-demo.mp4\"\n  ],\n  \"inventory\": {\n    \"manageStock\": true,\n    \"quantity\": 50,\n    \"lowStockThreshold\": 5,\n    \"backorders\": \"no\"\n  },\n  \"description\": \"Premium running shoes with breathable mesh and cushioned sole.\",\n  \"shortDescription\": \"Lightweight running shoes\",\n  \"status\": \"active\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1962,6 +2384,141 @@
                 "products"
               ]
             }
+          }
+        },
+        {
+          "name": "Create Variable Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Cotton Polo Shirt (Variable)\",\n  \"slug\": \"premium-cotton-polo-shirt\",\n  \"productType\": \"variable\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"cat_id\": \"6aabb9b9657327a3c29b261c\",\n  \"sub_cat_id\": \"6aabb9b9657327a3c29b261d\",\n  \"nested_sub_cat_id\": \"6aabb9b9657327a3c29b261e\",\n  \"sku\": \"POLO-VAR-001\",\n  \"global_unique_id\": \"0123456789012\",\n  \"price\": 999,\n  \"manage_stock\": false,\n  \"sold_individually\": false,\n  \"attributes\": [\n    {\n      \"name\": \"Size\",\n      \"options\": [\n        \"S\",\n        \"M\",\n        \"L\",\n        \"XL\"\n      ]\n    },\n    {\n      \"name\": \"Color\",\n      \"options\": [\n        \"Navy Blue\",\n        \"White\",\n        \"Crimson\"\n      ]\n    }\n  ],\n  \"upsell_ids\": [],\n  \"cross_sell_ids\": [],\n  \"menu_order\": 0,\n  \"enable_reviews\": true,\n  \"thumbnail\": \"http://localhost:5000/uploads/1789717515264-253293279.png\",\n  \"images\": [\n    \"http://localhost:5000/uploads/1789717515277-887617187.png\"\n  ],\n  \"description\": \"High-quality cotton polo shirt available in multiple colors and sizes.\",\n  \"shortDescription\": \"Classic fit cotton polo shirt\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Virtual / Downloadable Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Full Stack Web Development Masterclass 2026\",\n  \"slug\": \"full-stack-web-dev-masterclass-2026\",\n  \"sku\": \"DIGI-COURSE-FSWD-01\",\n  \"productType\": \"simple\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"cat_id\": \"6aabb9e07f05a228c645e53e\",\n  \"sub_cat_id\": \"6aabb9e07f05a228c645e53f\",\n  \"nested_sub_cat_id\": \"6aabb9e17f05a228c645e540\",\n  \"price\": 1999,\n  \"salePrice\": 1499,\n  \"currency\": \"INR\",\n  \"description\": \"Complete video course with source codes and exercises.\",\n  \"shortDescription\": \"Instant digital access - Full stack course bundle.\",\n  \"thumbnail\": \"http://localhost:5000/uploads/1789717515264-253293279.png\",\n  \"images\": [\n    \"http://localhost:5000/uploads/1789717515277-887617187.png\"\n  ],\n  \"videos\": [\n    \"http://localhost:5000/uploads/1789717515301-demo.mp4\"\n  ],\n  \"virtual\": true,\n  \"downloadable\": true,\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create External Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smart Fitness Tracker (External/Affiliate)\",\n  \"slug\": \"smart-fitness-tracker-affiliate\",\n  \"productType\": \"external\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"cat_id\": \"6aabb9e07f05a228c645e53e\",\n  \"sub_cat_id\": \"6aabb9e07f05a228c645e53f\",\n  \"nested_sub_cat_id\": \"6aabb9e17f05a228c645e540\",\n  \"sku\": \"EXT-TRACKER-01\",\n  \"external_url\": \"https://partner-store.example.com/products/fitness-tracker\",\n  \"button_text\": \"Buy product\",\n  \"regular_price\": 3499,\n  \"sale_price\": 2999,\n  \"global_unique_id\": \"012345678999\",\n  \"upsell_ids\": [],\n  \"attributes\": [],\n  \"menu_order\": 0,\n  \"enable_reviews\": true,\n  \"thumbnail\": \"http://localhost:5000/uploads/1789717515264-253293279.png\",\n  \"images\": [\n    \"http://localhost:5000/uploads/1789717515277-887617187.png\"\n  ],\n  \"description\": \"Affiliate smart tracker with health monitoring and long battery life.\",\n  \"shortDescription\": \"Affiliate smart tracker\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Grouped Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Men Sports Training Complete Set (Grouped)\",\n  \"slug\": \"men-sports-training-complete-set\",\n  \"productType\": \"grouped\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"cat_id\": \"6aabb9e07f05a228c645e53e\",\n  \"sub_cat_id\": \"6aabb9e07f05a228c645e53f\",\n  \"nested_sub_cat_id\": \"6aabb9e17f05a228c645e540\",\n  \"sku\": \"GRP-SET-2026\",\n  \"global_unique_id\": \"012345678905\",\n  \"grouped_products\": [],\n  \"upsell_ids\": [],\n  \"attributes\": [\n    {\n      \"name\": \"Collection\",\n      \"options\": [\n        \"Spring 2026\",\n        \"Autumn 2026\"\n      ]\n    }\n  ],\n  \"purchase_note\": \"Thank you for purchasing our grouped bundle set.\",\n  \"menu_order\": 0,\n  \"reviews_allowed\": true,\n  \"thumbnail\": \"http://localhost:5000/uploads/1789717515264-253293279.png\",\n  \"images\": [\n    \"http://localhost:5000/uploads/1789717515277-887617187.png\"\n  ],\n  \"description\": \"A curated collection of men sports gear grouped together into a single purchasable bundle.\",\n  \"shortDescription\": \"Complete sports gear bundle\",\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/products",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Create a Grouped Product. Grouped products only have Inventory (SKU, GTIN/UPC/EAN/ISBN), Linked Products (grouped_products, upsells), Attributes, and Advanced tabs. Price, stock inventory tracking, and shipping are managed by child products."
           }
         },
         {
@@ -2074,7 +2631,7 @@
           "name": "Images",
           "item": [
             {
-              "name": "Create Product Image",
+              "name": "Bulk Link Product Images",
               "request": {
                 "method": "POST",
                 "header": [
@@ -2086,7 +2643,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"url\": \"https://example.com/image.jpg\",\n  \"altText\": \"Front view\",\n  \"isPrimary\": true,\n  \"sortOrder\": 0\n}",
+                  "raw": "{\n  \"images\": [\n    \"http://localhost:5000/uploads/example1.png\",\n    \"http://localhost:5000/uploads/example2.png\"\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2094,7 +2651,7 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/images",
+                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images/bulk-link",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -2104,51 +2661,16 @@
                     "api",
                     "products",
                     "6aa91b5ceb110981a58a78ac",
-                    "images"
+                    "images",
+                    "bulk-link"
                   ]
                 }
               }
             },
             {
-              "name": "Create Variant Image",
+              "name": "Set Primary Image",
               "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{ADMIN_TOKEN}}",
-                    "type": "text"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"variantId\": \"6aa91bc6fd1dfea0f2fe4d28\",\n  \"url\": \"https://example.com/variant.jpg\",\n  \"isPrimary\": true\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
-                "url": {
-                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/images",
-                  "protocol": "http",
-                  "host": [
-                    "localhost"
-                  ],
-                  "port": "5000",
-                  "path": [
-                    "api",
-                    "products",
-                    "6aa91b5ceb110981a58a78ac",
-                    "images"
-                  ]
-                }
-              }
-            },
-            {
-              "name": "Get Product Images",
-              "request": {
-                "method": "GET",
+                "method": "PATCH",
                 "header": [
                   {
                     "key": "Authorization",
@@ -2157,7 +2679,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/images",
+                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a/primary",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -2165,17 +2687,17 @@
                   "port": "5000",
                   "path": [
                     "api",
-                    "products",
-                    "6aa91b5ceb110981a58a78ac",
-                    "images"
+                    "product-images",
+                    "6aa91bc6fd1dfea0f2fe4d2a",
+                    "primary"
                   ]
                 }
               }
             },
             {
-              "name": "Get Product Image By Id",
+              "name": "Delete Product Image",
               "request": {
-                "method": "GET",
+                "method": "DELETE",
                 "header": [
                   {
                     "key": "Authorization",
@@ -2234,9 +2756,9 @@
               }
             },
             {
-              "name": "Set Primary Image",
+              "name": "Get Product Images",
               "request": {
-                "method": "PATCH",
+                "method": "GET",
                 "header": [
                   {
                     "key": "Authorization",
@@ -2245,7 +2767,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a/primary",
+                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -2253,17 +2775,17 @@
                   "port": "5000",
                   "path": [
                     "api",
-                    "product-images",
-                    "6aa91bc6fd1dfea0f2fe4d2a",
-                    "primary"
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "images"
                   ]
                 }
               }
             },
             {
-              "name": "Delete Product Image",
+              "name": "Get Product Image By Id",
               "request": {
-                "method": "DELETE",
+                "method": "GET",
                 "header": [
                   {
                     "key": "Authorization",
@@ -2282,6 +2804,78 @@
                     "api",
                     "product-images",
                     "6aa91bc6fd1dfea0f2fe4d2a"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Product Image",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://example.com/image.jpg\",\n  \"altText\": \"Front view\",\n  \"isPrimary\": true,\n  \"sortOrder\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "images"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Variant Image",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"variantId\": \"6aa91bc6fd1dfea0f2fe4d28\",\n  \"url\": \"https://example.com/variant.jpg\",\n  \"isPrimary\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "api",
+                    "products",
+                    "6aa91b5ceb110981a58a78ac",
+                    "images"
                   ]
                 }
               }
@@ -2312,7 +2906,7 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/inventory",
+                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/inventory",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -2339,7 +2933,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/inventory",
+                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/inventory",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -2375,7 +2969,7 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/variants/6aa9255916b53d9055234395/inventory",
+                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/variants/6aa9255916b53d9055234395/inventory",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -2516,74 +3110,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Create External Product",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"External Item\",\n  \"slug\": \"external-item\",\n  \"description\": \"Desc\",\n  \"shortDescription\": \"Short\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"categoryId\": \"6aa8e0e85df1ad146ba015fe\",\n  \"sku\": \"EXT-001\",\n  \"price\": 50,\n  \"productType\": \"external\",\n  \"externalUrl\": \"https://example.com/buy\",\n  \"buttonText\": \"Buy from Partner\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/products",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "products"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Variable Product",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Variable Item\",\n  \"slug\": \"variable-item\",\n  \"description\": \"Desc\",\n  \"shortDescription\": \"Short\",\n  \"sellerId\": \"6aa90f8ce2fd080f95e4666d\",\n  \"categoryId\": \"6aa8e0e85df1ad146ba015fe\",\n  \"sku\": \"VAR-001\",\n  \"price\": 200,\n  \"productType\": \"variable\",\n  \"attributes\": [\n    {\n      \"name\": \"Size\",\n      \"options\": [\"S\", \"M\", \"L\"]\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/products",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "products"
-              ]
-            }
-          }
         }
       ]
     },
@@ -2705,6 +3231,186 @@
                 "6aa91bc6fd1dfea0f2fe4d28"
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        {
+          "name": "Upload Thumbnail Image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "thumbnail",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/upload/thumbnail",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "upload",
+                "thumbnail"
+              ]
+            },
+            "description": "Upload single primary thumbnail image"
+          }
+        },
+        {
+          "name": "Step 1 - Init Upload Session ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.uploadId) {",
+                  "    pm.environment.set(\"CURRENT_UPLOAD_ID\", jsonData.uploadId);",
+                  "    console.log(\"Saved CURRENT_UPLOAD_ID:\", jsonData.uploadId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/upload/init",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "upload",
+                "init"
+              ]
+            },
+            "description": "Call this first to generate an uploadId automatically. It automatically saves CURRENT_UPLOAD_ID into Postman environment."
+          }
+        },
+        {
+          "name": "Step 2 - Batch Upload Media (With X-Upload-ID)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Upload-ID",
+                "value": "{{CURRENT_UPLOAD_ID}}",
+                "type": "text",
+                "description": "Pass the generated uploadId (e.g. {{CURRENT_UPLOAD_ID}} or custom string) to track live upload progress"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "videos",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/upload/images/batch",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "upload",
+                "images",
+                "batch"
+              ]
+            },
+            "description": "Upload multiple images or videos. Backend tracks incoming bytes and pushes live updates to SSE and JSON progress endpoints."
+          }
+        },
+        {
+          "name": "Step 3 - Live Progress Stream (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/upload/stream/:uploadId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "upload",
+                "stream",
+                ":uploadId"
+              ],
+              "variable": [
+                {
+                  "key": "uploadId",
+                  "value": "{{CURRENT_UPLOAD_ID}}",
+                  "description": "The exact uploadId from Step 1"
+                }
+              ]
+            },
+            "description": "Server-Sent Events (SSE) persistent stream. Emits real-time progress and bytesLoaded as files arrive on the server."
+          }
+        },
+        {
+          "name": "Step 4 - Check Upload Progress & Bytes (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/upload/progress/:uploadId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "upload",
+                "progress",
+                ":uploadId"
+              ],
+              "variable": [
+                {
+                  "key": "uploadId",
+                  "value": "{{CURRENT_UPLOAD_ID}}",
+                  "description": "The exact uploadId to check bytesLoaded, totalBytes, and percentage"
+                }
+              ]
+            },
+            "description": "Standard JSON endpoint returning current bytesLoaded, totalBytes, status, and uploaded URLs."
           }
         }
       ]

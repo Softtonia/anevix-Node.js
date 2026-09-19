@@ -314,5 +314,6 @@ module.exports = {
   getInventoryById,
   updateInventory,
   adjustInventory,
-  deleteInventory
+  deleteInventory,
+  getInventoryStatus
 };

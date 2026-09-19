@@ -7,9 +7,12 @@ const {
   updateProductImage,
   deleteProductImage,
   setPrimaryImage,
+  bulkCreateProductImages,
+  bulkLinkProductImages,
 } = require("../controllers/productImageController");
 
 const adminAuth = require("../middleware/adminAuth");
+const { upload } = require("./uploadRoutes");
 
 const passiveAdminAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -46,14 +49,16 @@ const passiveAdminAuth = async (req, res, next) => {
   next();
 };
 
-// Nested routes starting with /api/products/:productId/images
-router.post("/:productId/images", adminAuth, createProductImage);
-router.get("/:productId/images", passiveAdminAuth, getProductImages);
+// Nested routes starting with /api/products...
+router.post("/api/products/images/bulk", adminAuth, upload.array("images", 100), bulkCreateProductImages);
+router.post("/api/products/:productId/images/bulk-link", adminAuth, bulkLinkProductImages);
+router.post("/api/products/:productId/images", adminAuth, upload.single("image"), createProductImage);
+router.get("/api/products/:productId/images", passiveAdminAuth, getProductImages);
 
 // Flat routes starting with /api/product-images/:imageId
-router.get("/:imageId", passiveAdminAuth, getProductImageById);
-router.put("/:imageId", adminAuth, updateProductImage);
-router.delete("/:imageId", adminAuth, deleteProductImage);
-router.patch("/:imageId/primary", adminAuth, setPrimaryImage);
+router.get("/api/product-images/:imageId", passiveAdminAuth, getProductImageById);
+router.put("/api/product-images/:imageId", adminAuth, upload.single("image"), updateProductImage);
+router.delete("/api/product-images/:imageId", adminAuth, deleteProductImage);
+router.patch("/api/product-images/:imageId/primary", adminAuth, setPrimaryImage);
 
 module.exports = router;

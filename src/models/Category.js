@@ -36,6 +36,11 @@ const categorySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    display: {
+      type: String,
+      enum: ["default", "products", "subcategories", "both"],
+      default: "default",
+    },
   },
   {
     timestamps: true,

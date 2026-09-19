@@ -6,6 +6,7 @@ const {
   getBrandById,
   updateBrand,
   deleteBrand,
+  getProductsByBrand
 } = require("../controllers/brandController");
 
 const router = express.Router();
@@ -47,6 +48,7 @@ const passiveAdminAuth = async (req, res, next) => {
 
 router.get("/", passiveAdminAuth, getBrands);
 router.get("/:id", passiveAdminAuth, getBrandById);
+router.get("/:id/products", passiveAdminAuth, getProductsByBrand);
 
 // Admin routes
 router.post("/", adminAuth, createBrand);

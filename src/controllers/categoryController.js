@@ -1,14 +1,30 @@
 const Category = require("../models/Category");
 const mongoose = require("mongoose");
-// TODO: Import Product model once implemented
-// const Product = require("../models/Product");
+const Product = require("../models/Product");
+
+const formatCategoryResponse = (category, count = 0) => {
+  const cat = category.toObject ? category.toObject() : category;
+  return {
+    id: cat._id.toString(),
+    name: cat.name,
+    slug: cat.slug,
+    parent: cat.parentId ? cat.parentId.toString() : null,
+    description: cat.description,
+    display: cat.display,
+    image: cat.image ? { src: cat.image } : null,
+    menu_order: cat.sortOrder,
+    count: count
+  };
+};
 
 // @desc    Create new category
 // @route   POST /api/categories
 // @access  Private/Admin
 const createCategory = async (req, res) => {
   try {
-    const { name, slug, description, parentId, image, isActive, sortOrder } = req.body;
+    const { name, slug, description, parentId, parent, image, isActive, sortOrder, menu_order, display } = req.body;
+    const finalParentId = parent !== undefined ? parent : parentId;
+    const finalSortOrder = menu_order !== undefined ? menu_order : sortOrder;
 
     if (!name || !slug) {
       return res.status(400).json({ message: "Name and slug are required" });
@@ -21,12 +37,12 @@ const createCategory = async (req, res) => {
     }
 
     // Validate parentId if provided
-    if (parentId) {
-      if (!mongoose.Types.ObjectId.isValid(parentId)) {
-        return res.status(400).json({ message: "Invalid parentId format" });
+    if (finalParentId) {
+      if (!mongoose.Types.ObjectId.isValid(finalParentId)) {
+        return res.status(400).json({ message: "Invalid parent format" });
       }
-      const parent = await Category.findById(parentId);
-      if (!parent) {
+      const parentDoc = await Category.findById(finalParentId);
+      if (!parentDoc) {
         return res.status(404).json({ message: "Parent category not found" });
       }
     }
@@ -35,17 +51,22 @@ const createCategory = async (req, res) => {
       name,
       slug,
       description,
-      parentId: parentId || null,
+      parentId: finalParentId || null,
       image,
+      display,
       isActive: isActive !== undefined ? isActive : true,
-      sortOrder: sortOrder || 0,
+      sortOrder: finalSortOrder || 0,
     });
 
     const createdCategory = await category.save();
-    res.status(201).json(createdCategory);
+    res.status(201).json(formatCategoryResponse(createdCategory, 0));
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Category with this slug already exists" });
+    }
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ message: "Validation Error", errors: messages });
     }
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -65,7 +86,17 @@ const getCategories = async (req, res) => {
     }
 
     const categories = await Category.find(query).sort({ sortOrder: 1, createdAt: -1 });
-    res.json(categories);
+
+    const productQuery = isAdmin ? {} : { status: "active", isActive: true };
+    const counts = await Product.aggregate([
+      { $match: productQuery },
+      { $group: { _id: "$categoryId", count: { $sum: 1 } } }
+    ]);
+    const countMap = {};
+    counts.forEach(c => { countMap[c._id?.toString()] = c.count; });
+
+    const response = categories.map(cat => formatCategoryResponse(cat, countMap[cat._id.toString()] || 0));
+    res.json(response);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -93,7 +124,10 @@ const getCategoryById = async (req, res) => {
       return res.status(404).json({ message: "Category not found" }); // Hide inactive from public
     }
 
-    res.json(category);
+    const productQuery = isAdmin ? { categoryId: category._id } : { categoryId: category._id, status: "active", isActive: true };
+    const count = await Product.countDocuments(productQuery);
+
+    res.json(formatCategoryResponse(category, count));
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -105,7 +139,9 @@ const getCategoryById = async (req, res) => {
 const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, slug, description, parentId, image, isActive, sortOrder } = req.body;
+    const { name, slug, description, parentId, parent, image, isActive, sortOrder, menu_order, display } = req.body;
+    const finalParentId = parent !== undefined ? parent : parentId;
+    const finalSortOrder = menu_order !== undefined ? menu_order : sortOrder;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid category ID format" });
@@ -126,15 +162,15 @@ const updateCategory = async (req, res) => {
     }
 
     // Validate parentId if provided
-    if (parentId && parentId !== category.parentId?.toString()) {
-      if (!mongoose.Types.ObjectId.isValid(parentId)) {
-        return res.status(400).json({ message: "Invalid parentId format" });
+    if (finalParentId && finalParentId !== category.parentId?.toString()) {
+      if (!mongoose.Types.ObjectId.isValid(finalParentId)) {
+        return res.status(400).json({ message: "Invalid parent format" });
       }
-      if (parentId === id) {
+      if (finalParentId === id) {
         return res.status(400).json({ message: "Category cannot be its own parent" });
       }
-      const parent = await Category.findById(parentId);
-      if (!parent) {
+      const parentDoc = await Category.findById(finalParentId);
+      if (!parentDoc) {
         return res.status(404).json({ message: "Parent category not found" });
       }
     }
@@ -161,16 +197,24 @@ const updateCategory = async (req, res) => {
     category.name = name !== undefined ? name : category.name;
     category.slug = slug !== undefined ? slug : category.slug;
     category.description = description !== undefined ? description : category.description;
-    category.parentId = parentId !== undefined ? parentId : category.parentId;
+    category.parentId = finalParentId !== undefined ? finalParentId : category.parentId;
+    category.display = display !== undefined ? display : category.display;
     category.image = image !== undefined ? image : category.image;
     category.isActive = isActive !== undefined ? isActive : category.isActive;
-    category.sortOrder = sortOrder !== undefined ? sortOrder : category.sortOrder;
+    category.sortOrder = finalSortOrder !== undefined ? finalSortOrder : category.sortOrder;
 
     const updatedCategory = await category.save();
-    res.json(updatedCategory);
+    
+    // Using simple countDocuments for single update response
+    const count = await Product.countDocuments({ categoryId: updatedCategory._id });
+    res.json(formatCategoryResponse(updatedCategory, count));
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Category with this slug already exists" });
+    }
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ message: "Validation Error", errors: messages });
     }
     res.status(500).json({ message: "Server Error", error: error.message });
   }

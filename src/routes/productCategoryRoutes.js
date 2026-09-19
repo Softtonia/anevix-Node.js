@@ -1,26 +1,16 @@
 const express = require("express");
 const adminAuth = require("../middleware/adminAuth");
 const {
-  createProduct,
-  getProducts,
-  getProductById,
-  updateProduct,
-  deleteProduct,
-} = require("../controllers/productController");
-
-const {
-  createVariant,
-  getVariants,
-} = require("../controllers/productVariantController");
-
-const {
-  createCompositeProduct
-} = require("../controllers/productCompositeController");
-
-const { upload } = require("./uploadRoutes");
+  createProductCategory,
+  getProductCategories,
+  getProductCategoryById,
+  updateProductCategory,
+  deleteProductCategory,
+} = require("../controllers/productCategoryController");
 
 const router = express.Router();
 
+// Passive admin auth middleware to populate req.admin optionally without blocking
 const passiveAdminAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader) {
@@ -50,21 +40,19 @@ const passiveAdminAuth = async (req, res, next) => {
         }
       }
     } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
+      // Ignored for passive auth
     }
   }
   next();
 };
 
-router.get("/", passiveAdminAuth, getProducts);
-router.get("/:id", passiveAdminAuth, getProductById);
+// Public routes
+router.get("/", passiveAdminAuth, getProductCategories);
+router.get("/:id", passiveAdminAuth, getProductCategoryById);
 
 // Admin routes
-router.post("/composite", adminAuth, upload.any(), createCompositeProduct);
-router.post("/", adminAuth, createProduct);
-router.post("/:productId/variants", adminAuth, createVariant);
-router.get("/:productId/variants", passiveAdminAuth, getVariants);
-router.put("/:id", adminAuth, updateProduct);
-router.delete("/:id", adminAuth, deleteProduct);
+router.post("/", adminAuth, createProductCategory);
+router.put("/:id", adminAuth, updateProductCategory);
+router.delete("/:id", adminAuth, deleteProductCategory);
 
 module.exports = router;

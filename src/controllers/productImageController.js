@@ -15,13 +15,20 @@ const createProductImage = async (req, res) => {
       return res.status(400).json({ message: "Invalid product ID format" });
     }
     
-    if (!url || typeof url !== 'string' || url.trim() === '') {
-      return res.status(400).json({ message: "URL is required" });
+    let imageUrl = url;
+    if (req.file) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    }
+
+    if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+      return res.status(400).json({ message: "URL or image file is required" });
     }
     
     // Check if valid URL string (basic check)
     try {
-      new URL(url);
+      new URL(imageUrl);
     } catch (_) {
       return res.status(400).json({ message: "Invalid URL format" });
     }
@@ -50,19 +57,22 @@ const createProductImage = async (req, res) => {
       }
     }
 
+    const parsedSortOrder = sortOrder !== undefined ? parseInt(sortOrder, 10) : 0;
+    const parsedIsPrimary = isPrimary === true || isPrimary === 'true';
+
     const image = new ProductImage({
       productId,
       variantId: variantId || null,
-      url,
+      url: imageUrl,
       altText,
-      sortOrder: sortOrder || 0,
+      sortOrder: isNaN(parsedSortOrder) ? 0 : parsedSortOrder,
       isPrimary: false, // We handle primary logic safely below if requested
     });
 
     await image.save();
 
     // If requested to be primary, apply the atomic scope swap logic
-    if (isPrimary) {
+    if (parsedIsPrimary) {
       // Unset any existing primary in this scope
       const scopeQuery = { productId };
       if (variantId) {
@@ -145,23 +155,31 @@ const updateProductImage = async (req, res) => {
       return res.status(404).json({ message: "Image not found" });
     }
 
-    if (url !== undefined) {
-      if (!url || typeof url !== 'string' || url.trim() === '') {
+    let imageUrl = url;
+    if (req.file) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    }
+
+    if (imageUrl !== undefined) {
+      if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
         return res.status(400).json({ message: "URL cannot be empty" });
       }
       try {
-        new URL(url);
+        new URL(imageUrl);
       } catch (_) {
         return res.status(400).json({ message: "Invalid URL format" });
       }
-      image.url = url;
+      image.url = imageUrl;
     }
 
     if (altText !== undefined) image.altText = altText;
     
     if (sortOrder !== undefined) {
-      if (sortOrder < 0) return res.status(400).json({ message: "Sort order cannot be negative" });
-      image.sortOrder = sortOrder;
+      const parsedSortOrder = parseInt(sortOrder, 10);
+      if (parsedSortOrder < 0 || isNaN(parsedSortOrder)) return res.status(400).json({ message: "Sort order cannot be negative or invalid" });
+      image.sortOrder = parsedSortOrder;
     }
 
     const updatedImage = await image.save();
@@ -185,6 +203,24 @@ const deleteProductImage = async (req, res) => {
     const image = await ProductImage.findByIdAndDelete(imageId);
     if (!image) {
       return res.status(404).json({ message: "Image not found" });
+    }
+
+    // Try to safely clean up the physical file
+    try {
+      if (image.url && image.url.includes('/uploads/')) {
+        const fsPromises = require('fs').promises;
+        const path = require('path');
+        const filename = image.url.split('/uploads/').pop();
+        if (filename && !filename.includes('/') && !filename.includes('..')) {
+          const filePath = path.join(process.cwd(), 'uploads', filename);
+          await fsPromises.unlink(filePath).catch(e => {
+            // Ignore ENOENT (file already deleted)
+            if (e.code !== 'ENOENT') console.error('Failed to delete physical file:', e);
+          });
+        }
+      }
+    } catch (cleanupError) {
+      console.error('File cleanup error during deletion:', cleanupError);
     }
 
     res.json({ message: "Image permanently deleted", imageId });
@@ -231,6 +267,211 @@ const setPrimaryImage = async (req, res) => {
   }
 };
 
+
+// @desc    Bulk upload product images
+// @route   POST /api/products/images/bulk
+// @access  Private/Admin
+const bulkCreateProductImages = async (req, res) => {
+  const fsPromises = require('fs').promises;
+  const path = require('path');
+
+  // Helper to safely delete a file
+  const safelyDeleteFile = async (filePath) => {
+    if (!filePath) return;
+    try {
+      await fsPromises.unlink(filePath);
+    } catch (e) {
+      if (e.code !== 'ENOENT') console.error('Failed to cleanup file:', e);
+    }
+  };
+
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "No image files uploaded" });
+    }
+
+    let items = [];
+    if (req.body.items) {
+      try {
+        items = typeof req.body.items === 'string' ? JSON.parse(req.body.items) : req.body.items;
+      } catch (e) {
+        // Cleanup all uploaded files on bad request
+        for (const file of req.files) await safelyDeleteFile(file.path);
+        return res.status(400).json({ message: "Invalid JSON in items field" });
+      }
+    }
+
+    if (!Array.isArray(items) || items.length !== req.files.length) {
+      for (const file of req.files) await safelyDeleteFile(file.path);
+      return res.status(400).json({ message: "The number of items metadata must match the number of uploaded files exactly" });
+    }
+
+    const summary = { total: req.files.length, successful: 0, failed: 0 };
+    const results = [];
+
+    // Protocol and host to build URL
+    const protocol = req.protocol;
+    const host = req.get('host');
+
+    // Group items by SKU to check for duplicate primary images in the same batch
+    const primaryCountPerSku = {};
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.sku) continue;
+      if (item.isPrimary === true || item.isPrimary === 'true') {
+        primaryCountPerSku[item.sku] = (primaryCountPerSku[item.sku] || 0) + 1;
+      }
+    }
+
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      const item = items[i];
+      const sku = item.sku;
+
+      if (!sku) {
+        await safelyDeleteFile(file.path);
+        results.push({ sku: null, success: false, error: "SKU is required" });
+        summary.failed++;
+        continue;
+      }
+
+      // Reject if ambiguous primary images
+      if (primaryCountPerSku[sku] > 1 && (item.isPrimary === true || item.isPrimary === 'true')) {
+        await safelyDeleteFile(file.path);
+        results.push({ sku, success: false, error: "Ambiguous mapping: multiple images marked as primary for the same SKU in this batch" });
+        summary.failed++;
+        continue;
+      }
+
+      try {
+        const product = await Product.findOne({ sku });
+        if (!product) {
+          await safelyDeleteFile(file.path);
+          results.push({ sku, success: false, error: "Product not found" });
+          summary.failed++;
+          continue;
+        }
+
+        const isPrimary = item.isPrimary === true || item.isPrimary === 'true';
+        const sortOrder = item.sortOrder !== undefined ? parseInt(item.sortOrder, 10) : 0;
+        const altText = item.altText || null;
+        const imageUrl = `${protocol}://${host}/uploads/${file.filename}`;
+
+        const image = new ProductImage({
+          productId: product._id,
+          variantId: null,
+          url: imageUrl,
+          altText,
+          sortOrder: isNaN(sortOrder) ? 0 : sortOrder,
+          isPrimary: false // Handled safely below
+        });
+
+        await image.save();
+
+        if (isPrimary) {
+          await ProductImage.updateMany({ productId: product._id, variantId: null }, { isPrimary: false });
+          image.isPrimary = true;
+          await image.save();
+        }
+
+        results.push({
+          sku,
+          productId: product._id,
+          imageId: image._id,
+          url: imageUrl,
+          success: true
+        });
+        summary.successful++;
+
+      } catch (err) {
+        await safelyDeleteFile(file.path);
+        results.push({ sku, success: false, error: err.message });
+        summary.failed++;
+      }
+    }
+
+    res.status(201).json({ success: true, summary, results });
+
+  } catch (error) {
+    // Top level catch: attempt to cleanup any remaining files if possible
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        try { await fsPromises.unlink(file.path); } catch(e){}
+      }
+    }
+    res.status(500).json({ message: "Server Error during bulk upload", error: error.message });
+  }
+};
+
+// @desc    Bulk link pre-uploaded images to a product via JSON
+// @route   POST /api/products/:productId/images/bulk-link
+// @access  Private/Admin
+const bulkLinkProductImages = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+    const { productId } = req.params;
+    const { images } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      throw new Error("Invalid product ID format");
+    }
+
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      throw new Error("An array of images is required");
+    }
+
+    const product = await Product.findById(productId).session(session);
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    const results = [];
+    for (let i = 0; i < images.length; i++) {
+      const item = images[i];
+      const imgData = typeof item === 'string' ? { url: item } : (item || {});
+      if (!imgData.url || typeof imgData.url !== 'string') {
+        throw new Error(`URL is required for image at index ${i}`);
+      }
+
+      const parsedSortOrder = imgData.sortOrder !== undefined ? parseInt(imgData.sortOrder, 10) : i;
+      const isPrimary = imgData.isPrimary === true || imgData.isPrimary === 'true';
+
+      const image = new ProductImage({
+        productId,
+        variantId: imgData.variantId || null,
+        url: imgData.url,
+        altText: imgData.altText || null,
+        sortOrder: isNaN(parsedSortOrder) ? 0 : parsedSortOrder,
+        isPrimary: false
+      });
+
+      await image.save({ session });
+
+      if (isPrimary) {
+        const scopeQuery = { productId };
+        if (imgData.variantId) scopeQuery.variantId = imgData.variantId;
+        else scopeQuery.variantId = null;
+        
+        await ProductImage.updateMany(scopeQuery, { isPrimary: false }, { session });
+        image.isPrimary = true;
+        await image.save({ session });
+      }
+      
+      results.push(image);
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json({ success: true, count: results.length, images: results });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(400).json({ message: error.message || "Failed to bulk link images" });
+  }
+};
+
 module.exports = {
   createProductImage,
   getProductImages,
@@ -238,4 +479,6 @@ module.exports = {
   updateProductImage,
   deleteProductImage,
   setPrimaryImage,
+  bulkCreateProductImages,
+  bulkLinkProductImages,
 };

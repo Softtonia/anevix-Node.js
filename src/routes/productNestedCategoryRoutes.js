@@ -1,23 +1,12 @@
 const express = require("express");
 const adminAuth = require("../middleware/adminAuth");
 const {
-  createProduct,
-  getProducts,
-  getProductById,
-  updateProduct,
-  deleteProduct,
-} = require("../controllers/productController");
-
-const {
-  createVariant,
-  getVariants,
-} = require("../controllers/productVariantController");
-
-const {
-  createCompositeProduct
-} = require("../controllers/productCompositeController");
-
-const { upload } = require("./uploadRoutes");
+  createProductNestedSubCategory,
+  getProductNestedSubCategories,
+  getProductNestedSubCategoryById,
+  updateProductNestedSubCategory,
+  deleteProductNestedSubCategory,
+} = require("../controllers/productNestedSubCategoryController");
 
 const router = express.Router();
 
@@ -50,21 +39,19 @@ const passiveAdminAuth = async (req, res, next) => {
         }
       }
     } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
+      // Ignored for passive auth
     }
   }
   next();
 };
 
-router.get("/", passiveAdminAuth, getProducts);
-router.get("/:id", passiveAdminAuth, getProductById);
+// Public routes
+router.get("/", passiveAdminAuth, getProductNestedSubCategories);
+router.get("/:id", passiveAdminAuth, getProductNestedSubCategoryById);
 
 // Admin routes
-router.post("/composite", adminAuth, upload.any(), createCompositeProduct);
-router.post("/", adminAuth, createProduct);
-router.post("/:productId/variants", adminAuth, createVariant);
-router.get("/:productId/variants", passiveAdminAuth, getVariants);
-router.put("/:id", adminAuth, updateProduct);
-router.delete("/:id", adminAuth, deleteProduct);
+router.post("/", adminAuth, createProductNestedSubCategory);
+router.put("/:id", adminAuth, updateProductNestedSubCategory);
+router.delete("/:id", adminAuth, deleteProductNestedSubCategory);
 
 module.exports = router;
