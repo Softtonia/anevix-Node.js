@@ -41,6 +41,9 @@ const loginAdmin = async (req, res) => {
       });
     }
 
+    adminUser.lastLoginAt = new Date();
+    await adminUser.save();
+
     const token = jwt.sign({ id: adminUser._id }, process.env.JWT_SECRET, {
       expiresIn: "90d",
     });
@@ -181,4 +184,53 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { loginAdmin, forgotPassword, resetPassword };
+const getAdminProfile = async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.admin.id);
+
+    if (!adminUser) {
+      return res.status(404).json({
+        status: false,
+        message: "Admin not found",
+      });
+    }
+
+    const roleMappings = await RoleHasUser.find({ user_id: adminUser._id });
+    const roleIds = roleMappings.map((m) => m.role_id);
+    const roles = await Role.find({ id: { $in: roleIds } });
+
+    const formattedRoles = roles.map((role) => ({
+      id: role.id,
+      name: role.slug || role.name,
+      guard_name: role.guard || "web",
+    }));
+
+    const fullName = `${adminUser.firstName || ""} ${adminUser.lastName || ""}`.trim();
+
+    return res.status(200).json({
+      status: true,
+      message: "Admin profile retrieved successfully.",
+      data: {
+        id: adminUser._id,
+        first_name: adminUser.firstName || "",
+        last_name: adminUser.lastName || "",
+        full_name: fullName,
+        email: adminUser.email,
+        status: adminUser.status || "active",
+        roles: formattedRoles,
+        last_login_at: adminUser.lastLoginAt ? adminUser.lastLoginAt.toISOString() : null,
+        created_at: adminUser.createdAt ? adminUser.createdAt.toISOString() : null,
+        updated_at: adminUser.updatedAt ? adminUser.updatedAt.toISOString() : null,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = { loginAdmin, forgotPassword, resetPassword, getAdminProfile };
+

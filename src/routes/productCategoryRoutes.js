@@ -3,9 +3,12 @@ const adminAuth = require("../middleware/adminAuth");
 const {
   createProductCategory,
   getProductCategories,
+  getProductCategoryTree,
   getProductCategoryById,
   updateProductCategory,
   deleteProductCategory,
+  getCategoryHierarchyWithGuidelines,
+  createCategoryHierarchyWithGuidelines,
 } = require("../controllers/productCategoryController");
 
 const router = express.Router();
@@ -47,12 +50,19 @@ const passiveAdminAuth = async (req, res, next) => {
 };
 
 // Public routes
+router.get("/hierarchy-with-guidelines", passiveAdminAuth, getCategoryHierarchyWithGuidelines);
+router.get("/tree", passiveAdminAuth, getProductCategoryTree);
 router.get("/", passiveAdminAuth, getProductCategories);
 router.get("/:id", passiveAdminAuth, getProductCategoryById);
 
 // Admin routes
+const { upload } = require("./uploadRoutes");
+router.post("/hierarchy-with-guidelines", adminAuth, upload.single("imageFile"), createCategoryHierarchyWithGuidelines);
+router.put("/hierarchy-with-guidelines/:id", adminAuth, upload.single("imageFile"), updateProductCategory);
+router.delete("/hierarchy-with-guidelines/:id", adminAuth, deleteProductCategory);
+
 router.post("/", adminAuth, createProductCategory);
-router.put("/:id", adminAuth, updateProductCategory);
+router.put("/:id", adminAuth, upload.single("imageFile"), updateProductCategory);
 router.delete("/:id", adminAuth, deleteProductCategory);
 
 module.exports = router;

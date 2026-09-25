@@ -49,6 +49,114 @@ Base URL: `/admin`
 
 ---
 
+## 📢 Campaign & Email Automation Management (Admin Only)
+Base URL: `/admin/campaigns` or `/api/campaigns`
+*All endpoints below require Admin Authentication (`Bearer <ADMIN_TOKEN>`)*
+
+### 1. Get Campaign Metadata & Merge Tags
+- **Method:** `GET`
+- **Endpoint:** `/meta`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+- **Description:** Returns the catalog of available merge tags (User, Order, Seller, Support, System) with sample values, list of system trigger events, supported send types (`send_now`, `scheduled`, `triggered`), and target audience options.
+
+### 2. Create Campaign
+- **Method:** `POST`
+- **Endpoint:** `/`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+- **Payload Examples:**
+
+  **A. When Triggered Campaign (Event-driven):**
+  ```json
+  {
+    "name": "Order Confirmation Email",
+    "subject": "Thank you for your order #{{order_id}}!",
+    "body": "<h1>Hi {{first_name}},</h1><p>Your order <strong>{{order_id}}</strong> for {{currency}} {{order_total}} has been placed successfully.</p><p>Delivery to: {{shipping_address}}</p>",
+    "sendType": "triggered",
+    "triggerEvent": "ORDER_PURCHASED",
+    "isActive": true
+  }
+  ```
+
+  **B. Scheduled Campaign:**
+  ```json
+  {
+    "name": "Diwali Festival Flash Sale",
+    "subject": "Mega Sale Starts Tonight, {{first_name}}!",
+    "body": "<p>Exclusive discounts on all categories for our valued sellers and buyers!</p>",
+    "sendType": "scheduled",
+    "scheduledAt": "2026-10-24T18:00:00.000Z",
+    "targetAudience": "customers"
+  }
+  ```
+
+  **C. Send Now (Immediate Broadcast):**
+  ```json
+  {
+    "name": "Platform Maintenance Notice",
+    "subject": "Scheduled Platform Maintenance Tonight",
+    "body": "<p>Dear {{username}}, our platform will undergo maintenance tonight from 2 AM to 4 AM.</p>",
+    "sendType": "send_now",
+    "targetAudience": "all_users"
+  }
+  ```
+
+### 3. List All Campaigns
+- **Method:** `GET`
+- **Endpoint:** `/?page=1&limit=20&sendType=triggered&status=active`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+
+### 4. Get Campaign Details
+- **Method:** `GET`
+- **Endpoint:** `/:id`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+
+### 5. Update Campaign
+- **Method:** `PUT`
+- **Endpoint:** `/:id`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+
+### 6. Toggle Campaign Status (Active / Paused)
+- **Method:** `PATCH`
+- **Endpoint:** `/:id/toggle`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+
+### 7. Delete Campaign
+- **Method:** `DELETE`
+- **Endpoint:** `/:id`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+
+### 8. Live Preview Campaign with Sample Merge Tags
+- **Method:** `POST`
+- **Endpoint:** `/preview`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+- **Payload:**
+  ```json
+  {
+    "subject": "Order #{{order_id}} Confirmed for {{first_name}}!",
+    "body": "<p>Hi {{first_name}}, your order #{{order_id}} is {{order_status}}.</p>"
+  }
+  ```
+
+### 9. Send Test Email
+- **Method:** `POST`
+- **Endpoint:** `/test-send`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+- **Payload:**
+  ```json
+  {
+    "email": "admin@yopmail.com",
+    "subject": "Test Order Confirmation",
+    "body": "<p>Hi {{first_name}}, this is a live test email preview.</p>"
+  }
+  ```
+
+### 10. Get Campaign Audit & Delivery Logs
+- **Method:** `GET`
+- **Endpoint:** `/:id/logs?page=1&limit=50&status=sent`
+- **Auth:** `Bearer <ADMIN_TOKEN>`
+
+---
+
 ## 👥 User Management (Admin Only)
 Base URL: `/users`
 *All endpoints below require Admin Authentication (`Bearer <ADMIN_TOKEN>`)*
@@ -189,54 +297,142 @@ Base URL: `/users`
 
 ---
 
-## 📁 Categories API
-Base URL: `/api/categories`
+---
 
-### 1. Create Category
-- **Method:** `POST`
-- **Endpoint:** `/`
-- **Auth:** `Bearer <ADMIN_TOKEN>`
-- **Payload:**
-  ```json
-  {
-    "name": "Electronics",
-    "slug": "electronics",
-    "description": "Electronic gadgets",
-    "parent": null,
-    "display": "products",
-    "menu_order": 0,
-    "image": "https://example.com/image.jpg"
-  }
-  ```
+## 📁 Product Categories Hierarchy API (Infinite Nesting)
+The Product Categories API supports infinite nesting depths (Level 1, 2, 3, 4, 5, ... N) using a self-referencing `parent` hierarchy, with standard WooCommerce attributes (`description`, `display`, `menu_order`, `image`, `count`).
 
-### 2. Get All Categories
-- **Method:** `GET`
-- **Endpoint:** `/`
-- **Auth:** None (Public)
-- **Response Format:** Reference schema including dynamically calculated `count` (active products inside category).
+### 1. Unified Categories & Infinite Nesting
+Base URL: `/api/product-categories`
 
-### 3. Get Category by ID
-- **Method:** `GET`
-- **Endpoint:** `/:id`
-- **Auth:** None (Public)
+- **Create Category (`POST /`)**:
+  - **Auth:** `Bearer <ADMIN_TOKEN>`
+  - **Payload (Root / Level 1 Category):**
+    ```json
+    {
+      "cat_name": "Clothing",
+      "slug": "clothing",
+      "parent": null,
+      "description": "<p>All clothing and apparel</p>",
+      "display": "both",
+      "image": "https://example.com/clothing.jpg",
+      "menu_order": 1
+    }
+    ```
+  - **Payload (Any Sub-Category - Level 2, Level 3, Level 4+):**
+    ```json
+    {
+      "cat_name": "Graphic Tees",
+      "slug": "graphic-tees",
+      "parent": "664fa7210e7b99214b621e25",
+      "description": "<p>Graphic printed tees</p>",
+      "display": "default",
+      "menu_order": 1
+    }
+    ```
+- **Get Full Categories Tree (`GET /tree`)**: Public. Returns the entire hierarchical nested JSON tree (`children: [...]`) from Root to Leaf.
+- **Get All Categories (`GET /` or `GET /?parent=<id|null>`)**: Public. Returns categories, optionally filtered by parent ID (pass `parent=null` or `parent=0` for root categories).
+- **Get Category by ID (`GET /:id`)**: Public.
+- **Update Category (`PUT /:id`)**: Admin only. (Includes cycle detection preventing circular hierarchies).
+- **Deactivate Category (`DELETE /:id`)**: Admin only. Requires child categories to be deactivated first.
 
-### 4. Update Category
-- **Method:** `PUT`
-- **Endpoint:** `/:id`
-- **Auth:** `Bearer <ADMIN_TOKEN>`
-- **Payload:** Same fields as Create Category.
+### 2. Product Sub-Categories (Tier 2)
+Base URL: `/api/product-sub-categories`
 
-### 5. Delete/Archive Category
-- **Method:** `DELETE`
-- **Endpoint:** `/:id`
-- **Auth:** `Bearer <ADMIN_TOKEN>`
+- **Create Sub-Category (`POST /`)**:
+  - **Auth:** `Bearer <ADMIN_TOKEN>`
+  - **Payload:**
+    ```json
+    {
+      "cat_id": "664fa7210e7b99214b621e20",
+      "sub_cat_name": "Men's Wear",
+      "slug": "mens-wear",
+      "description": "<p>Clothing and fashion wear for men</p>",
+      "display": "products",
+      "image": "https://example.com/mens-wear.jpg",
+      "menu_order": 1
+    }
+    ```
+- **Get Sub-Categories (`GET /` or `GET /?cat_id=...`)**: Public.
+- **Update Sub-Category (`PUT /:id`)**: Admin only.
+- **Deactivate Sub-Category (`DELETE /:id`)**: Admin only.
+
+### 3. Product Nested Sub-Categories (Tier 3)
+Base URL: `/api/product-nested-sub-categories`
+
+- **Create Nested Sub-Category (`POST /`)**:
+  - **Auth:** `Bearer <ADMIN_TOKEN>`
+  - **Payload:**
+    ```json
+    {
+      "sub_cat_id": "664fa7210e7b99214b621e25",
+      "name": "T-Shirts",
+      "slug": "mens-t-shirts",
+      "description": "<p>Casual and graphic t-shirts</p>",
+      "display": "default",
+      "image": "https://example.com/t-shirts.jpg",
+      "menu_order": 1
+    }
+    ```
+- **Get Nested Sub-Categories (`GET /` or `GET /?cat_id=...&sub_cat_id=...`)**: Public.
+- **Update Nested Sub-Category (`PUT /:id`)**: Admin only.
+- **Deactivate Nested Sub-Category (`DELETE /:id`)**: Admin only.
 
 ---
 
 ## 📦 Products API
 Base URL: `/api/products`
 
-### 1. Create Product
+### 1. Get Product Type Schema & Form Variables
+- **Method:** `GET`
+- **Endpoint:** `/schema/:productType` (e.g. `/schema/simple`, `/schema/grouped`, `/schema/external`, `/schema/variable`) or `/schema` (returns index of all types)
+- **Auth:** None (Public / Passive Admin)
+- **Description:** Returns the UI form tabs, input fields, validation rules, default values, dropdown options, and dependencies for the selected product type so the frontend can render the dynamic product creation form.
+- **Supported Types:** `simple`, `grouped`, `external`, `variable`
+- **Response Structure:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "productType": "simple",
+      "title": "Simple Product",
+      "description": "A single, standalone physical or digital product with a unique SKU and price.",
+      "tabs": [
+        { "id": "general", "label": "General" },
+        { "id": "pricing", "label": "Pricing" },
+        { "id": "inventory", "label": "Inventory" },
+        { "id": "shipping", "label": "Shipping" },
+        { "id": "attributes", "label": "Attributes" },
+        { "id": "linked_products", "label": "Linked Products" },
+        { "id": "media", "label": "Images & Media" },
+        { "id": "seo", "label": "SEO & Visibility" }
+      ],
+      "fields": [
+        {
+          "key": "name",
+          "label": "Product Name",
+          "type": "text",
+          "required": true,
+          "tab": "general",
+          "placeholder": "e.g. Wireless Headphones",
+          "defaultValue": ""
+        },
+        {
+          "key": "regular_price",
+          "altKey": "price",
+          "label": "Regular Price",
+          "type": "number",
+          "required": true,
+          "tab": "pricing",
+          "min": 0,
+          "defaultValue": null
+        }
+      ]
+    }
+  }
+  ```
+
+### 2. Create Product
 - **Method:** `POST`
 - **Endpoint:** `/`
 - **Auth:** `Bearer <SELLER_OR_ADMIN_TOKEN>`

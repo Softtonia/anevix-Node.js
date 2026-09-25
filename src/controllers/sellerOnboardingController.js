@@ -9,6 +9,7 @@ const B2CSellerProfile = require("../models/B2CSellerProfile");
 const { verifyPAN: verifyPanService } = require("../services/panVerificationService");
 const { verifyGSTIN: verifyGstService } = require("../services/gstVerificationService");
 const { verifyBankAccount: verifyBankService } = require("../services/bankVerificationService");
+const { triggerCampaignEvent } = require("../services/campaignService");
 
 const getSellerProfile = async (req, res) => {
   try {
@@ -44,15 +45,21 @@ const getSellerProfile = async (req, res) => {
     const panDetails = await PanVerification.findOne({ userId });
     const gstinDetails = await GstinVerification.findOne({ userId });
     const bankDetails = await BankVerification.findOne({ userId });
+    
+    // Also fetch the B2CSellerProfile so the frontend has the correct ID for product uploads
+    const B2CSellerProfile = require("../models/B2CSellerProfile");
+    const b2cProfile = await B2CSellerProfile.findOne({ userId });
 
     return res.status(200).json({
       success: true,
       profile: {
         ...profile.toObject(),
+        b2cProfileId: b2cProfile ? b2cProfile._id : null,
         panDetails,
         gstinDetails,
         bankDetails
       },
+      b2cProfile: b2cProfile ? b2cProfile.toObject() : null,
     });
   } catch (error) {
     return res.status(500).json({
@@ -83,9 +90,15 @@ const submitStep1 = async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const profile = await SellerRegistration.findOne({ userId });
+    let profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
-      return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
+      profile = new SellerRegistration({
+        userId,
+        companyName,
+        businessType,
+        sellerType,
+        businessAddress,
+      });
     }
 
     if (profile.currentStep !== "SELLER_PROFILE" && profile.onboardingStatus !== "PENDING") {
@@ -454,6 +467,10 @@ const registerCompleteB2CSeller = async (req, res) => {
       if (personalInfo.dateOfBirth) user.dateOfBirth = personalInfo.dateOfBirth;
       await user.save();
     }
+
+    // Determine the user to pass in event
+    const finalUser = user ? user.toObject() : { _id: userId };
+    triggerCampaignEvent("SELLER_ONBOARDING_COMPLETED", { user: finalUser });
 
     return res.status(200).json({
       success: true,

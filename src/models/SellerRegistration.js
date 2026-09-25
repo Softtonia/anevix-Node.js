@@ -8,19 +8,24 @@ const sellerRegistrationSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    sellerId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     companyName: {
       type: String,
-      required: true,
+      default: "",
     },
     businessType: {
       type: String,
-      enum: ["SOLE_PROPRIETORSHIP", "LLP", "PRIVATE_LIMITED", "PUBLIC_LIMITED", "OTHER"],
-      required: true,
+      enum: ["SOLE_PROPRIETORSHIP", "LLP", "PRIVATE_LIMITED", "PUBLIC_LIMITED", "OTHER", ""],
+      default: "",
     },
     sellerType: {
       type: String,
-      enum: ["MANUFACTURER", "WHOLESALER", "RETAILER", "DISTRIBUTOR"],
-      required: true,
+      enum: ["MANUFACTURER", "WHOLESALER", "RETAILER", "DISTRIBUTOR", ""],
+      default: "",
     },
     dateOfBirth: {
       type: Date, // optional
@@ -72,5 +77,14 @@ const sellerRegistrationSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+sellerRegistrationSchema.pre('save', function(next) {
+  if (!this.sellerId) {
+    const timestamp = Date.now().toString().slice(-5);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    this.sellerId = `SEL-${timestamp}${random}`;
+  }
+  next();
+});
 
 module.exports = mongoose.model("SellerRegistration", sellerRegistrationSchema);

@@ -6,10 +6,11 @@ const VariableProduct = require("../models/VariableProduct");
 const mongoose = require("mongoose");
 const Category = require("../models/Category");
 const ProductCategory = require("../models/ProductCategory");
-const ProductSubCategory = require("../models/ProductSubCategory");
-const ProductNestedSubCategory = require("../models/ProductNestedSubCategory");
+
+
 const Brand = require("../models/Brand");
 const B2CSellerProfile = require("../models/B2CSellerProfile");
+const SellerRegistration = require("../models/SellerRegistration");
 const ProductImage = require("../models/ProductImage");
 const Inventory = require("../models/Inventory");
 const { getInventoryStatus } = require("./inventoryController");
@@ -79,9 +80,12 @@ const formatProductResponse = (p, images, inventoryRecord = null) => {
     description: prod.description || "",
     short_description: prod.shortDescription || "",
     sellerId: prod.sellerId?.toString(),
-    cat_id: prod.cat_id?.toString() || prod.categoryId?.toString(),
-    sub_cat_id: prod.sub_cat_id?.toString(),
-    nested_sub_cat_id: prod.nested_sub_cat_id?.toString(),
+    cat_id: prod.cat_id ? (prod.cat_id._id ? prod.cat_id._id.toString() : prod.cat_id.toString()) : (prod.categoryId ? (prod.categoryId._id ? prod.categoryId._id.toString() : prod.categoryId.toString()) : null),
+    category_name: prod.cat_id ? (prod.cat_id.cat_name || prod.cat_id.name || null) : (prod.categoryId ? (prod.categoryId.cat_name || prod.categoryId.name || null) : null),
+    sub_cat_id: prod.sub_cat_id ? (prod.sub_cat_id._id ? prod.sub_cat_id._id.toString() : prod.sub_cat_id.toString()) : null,
+    sub_category_name: prod.sub_cat_id ? (prod.sub_cat_id.sub_cat_name || prod.sub_cat_id.cat_name || prod.sub_cat_id.name || null) : null,
+    nested_sub_cat_id: prod.nested_sub_cat_id ? (prod.nested_sub_cat_id._id ? prod.nested_sub_cat_id._id.toString() : prod.nested_sub_cat_id.toString()) : null,
+    nested_sub_category_name: prod.nested_sub_cat_id ? (prod.nested_sub_cat_id.name || prod.nested_sub_cat_id.cat_name || null) : null,
     brands: prod.brandId ? (prod.brandId._id ? [{
       id: prod.brandId._id.toString(),
       name: prod.brandId.name,
@@ -181,9 +185,9 @@ const validateAttributes = (attributes, productType) => {
 // @access  Private/Admin
 const createProduct = async (req, res) => {
   try {
-    const {
-      name, slug, description, shortDescription,
+    let { name, slug, description, shortDescription,
       sellerId, categoryId, cat_id, sub_cat_id, nested_sub_cat_id, brandId, sku,
+      batchId, // NEW: Support bulk upload batch ID or auto-generate for single uploads
       price, regular_price, salePrice, sale_price, currency,
       thumbnail, tags, attributes,
       productType, virtual, downloadable,
@@ -201,6 +205,11 @@ const createProduct = async (req, res) => {
       videos // videos payload containing previously uploaded video metadata
     } = req.body;
 
+    if (cat_id === "") cat_id = null;
+    if (sub_cat_id === "") sub_cat_id = null;
+    if (nested_sub_cat_id === "") nested_sub_cat_id = null;
+
+
     const finalReviewsAllowed = reviews_allowed !== undefined ? !!reviews_allowed : (enable_reviews !== undefined ? !!enable_reviews : true);
     const finalMenuOrder = menu_order !== undefined ? (parseInt(menu_order, 10) || 0) : 0;
     const finalExternalUrl = externalUrl !== undefined ? externalUrl : external_url;
@@ -212,26 +221,26 @@ const createProduct = async (req, res) => {
     const finalSalePrice = sale_price !== undefined ? sale_price : salePrice;
 
     if (pType === "grouped" || pType === "external") {
-      if (!name || !slug || !sellerId || !cat_id || !sub_cat_id || !nested_sub_cat_id || !sku) {
-        return res.status(400).json({ message: "Name, slug, sellerId, cat_id, sub_cat_id, nested_sub_cat_id, and sku are required" });
+      if (!name || !slug || !sellerId || !cat_id || !sku) {
+        return res.status(400).json({ message: "Name, slug, sellerId, cat_id, and sku are required" });
       }
       if (inventory) {
         return res.status(400).json({ message: "Direct product inventory is only allowed for 'simple' products" });
       }
     } else {
-      if (!name || !slug || !sellerId || !cat_id || !sub_cat_id || !nested_sub_cat_id || !sku || finalPrice === undefined) {
-        return res.status(400).json({ message: "Name, slug, sellerId, cat_id, sub_cat_id, nested_sub_cat_id, sku, and price are required" });
+      if (!name || !slug || !sellerId || !cat_id || !sku || finalPrice === undefined) {
+        return res.status(400).json({ message: "Name, slug, sellerId, cat_id, sku, and price are required" });
       }
     }
 
-    if (finalPrice !== undefined && finalPrice < 0) {
+    if (finalPrice !== undefined && Number(finalPrice) < 0) {
       return res.status(400).json({ message: "Price cannot be negative" });
     }
     if (finalSalePrice !== undefined && finalSalePrice !== null) {
-      if (finalSalePrice < 0) {
+      if (Number(finalSalePrice) < 0) {
         return res.status(400).json({ message: "Sale price cannot be negative" });
       }
-      if (finalPrice !== undefined && finalSalePrice >= finalPrice) {
+      if (finalPrice !== undefined && Number(finalSalePrice) >= Number(finalPrice)) {
         return res.status(400).json({ message: "Sale price must be strictly less than the regular price" });
       }
     }
@@ -257,7 +266,7 @@ const createProduct = async (req, res) => {
     }
 
     // Validate ObjectIds
-    if (!mongoose.Types.ObjectId.isValid(sellerId) || !mongoose.Types.ObjectId.isValid(cat_id) || !mongoose.Types.ObjectId.isValid(sub_cat_id) || !mongoose.Types.ObjectId.isValid(nested_sub_cat_id)) {
+    if (!mongoose.Types.ObjectId.isValid(sellerId) || !mongoose.Types.ObjectId.isValid(cat_id) || !mongoose.Types.ObjectId.isValid(sub_cat_id) || (nested_sub_cat_id && !mongoose.Types.ObjectId.isValid(nested_sub_cat_id))) {
       return res.status(400).json({ message: "Invalid sellerId or category ID format" });
     }
     if (brandId && !mongoose.Types.ObjectId.isValid(brandId)) {
@@ -265,18 +274,27 @@ const createProduct = async (req, res) => {
     }
 
     // Validate relationships exist
-    const seller = await B2CSellerProfile.findById(sellerId);
-    if (!seller) return res.status(404).json({ message: "Seller profile not found" });
+    let seller = await B2CSellerProfile.findById(sellerId);
+    if (!seller) {
+      seller = await SellerRegistration.findById(sellerId);
+      if (!seller) return res.status(404).json({ message: "Seller profile not found" });
+    }
 
     const cat = await ProductCategory.findById(cat_id);
     if (!cat) return res.status(404).json({ message: "ProductCategory not found" });
-    const subCat = await ProductSubCategory.findById(sub_cat_id);
-    if (!subCat) return res.status(404).json({ message: "ProductSubCategory not found" });
-    if (subCat.cat_id.toString() !== cat_id.toString()) return res.status(400).json({ message: "sub_cat_id does not belong to cat_id" });
-    const nestedCat = await ProductNestedSubCategory.findById(nested_sub_cat_id);
-    if (!nestedCat) return res.status(404).json({ message: "ProductNestedSubCategory not found" });
-    if (nestedCat.sub_cat_id.toString() !== sub_cat_id.toString()) {
-      return res.status(400).json({ message: "nested_sub_cat_id does not belong to the specified sub_cat_id" });
+    
+    let subCat = null;
+    if (sub_cat_id) {
+      subCat = await ProductCategory.findById(sub_cat_id);
+      if (!subCat) return res.status(404).json({ message: "ProductCategory not found" });
+      if (subCat.parentId?.toString() !== cat_id.toString()) return res.status(400).json({ message: "sub_cat_id does not belong to cat_id" });
+    }
+    
+    let nestedCat = null;
+    if (nested_sub_cat_id) {
+      nestedCat = await ProductCategory.findById(nested_sub_cat_id);
+      if (!nestedCat) return res.status(404).json({ message: "ProductCategory not found" });
+      if (nestedCat.parentId?.toString() !== sub_cat_id.toString()) return res.status(400).json({ message: "nested_sub_cat_id does not belong to the specified sub_cat_id" });
     }
 
     if (grouped_products && Array.isArray(grouped_products)) {
@@ -303,16 +321,26 @@ const createProduct = async (req, res) => {
       }
     }
 
-    const finalStatus = status ? mapStatusToDb(status) : "draft";
+    const isAdmin = req.admin || req.user?.role === 'admin';
+    
+    // Default to pending for sellers, active for admins, unless explicitly specified
+    let defaultStatus = isAdmin ? "active" : "pending";
+    let finalStatus = status ? mapStatusToDb(status) : defaultStatus;
+
+    // Force pending for sellers unless they explicitly request draft
+    if (!isAdmin && finalStatus !== "draft") {
+      finalStatus = "pending";
+    }
 
     const commonData = {
       name, slug, description, shortDescription,
       sellerId, categoryId, cat_id, sub_cat_id, nested_sub_cat_id, brandId: brandId || null, sku,
+      batchId: batchId || `SINGLE-${Date.now()}`,
       salePrice: finalSalePrice, currency: currency || "INR",
       thumbnail, tags, attributes: attributes || [],
       productType: pType, virtual, downloadable,
       status: finalStatus,
-      isActive: isActive !== undefined ? isActive : (finalStatus !== "archived"),
+      isActive: finalStatus === "active",
       isFeatured: isFeatured !== undefined ? isFeatured : false,
       metaTitle, metaDescription,
       externalUrl: pType === "external" ? finalExternalUrl : null,
@@ -574,9 +602,26 @@ const getProducts = async (req, res) => {
     if (!isAdmin) {
       query.status = "active";
       query.isActive = true;
+    } else {
+      // If admin, they can filter by status
+      if (req.query.status) {
+        query.status = req.query.status;
+      }
     }
 
-    const products = await Product.find(query).populate('brandId', 'name slug').lean().sort({ createdAt: -1 });
+    // Filter by seller if provided
+    if (req.query.sellerId && mongoose.Types.ObjectId.isValid(req.query.sellerId)) {
+      query.sellerId = req.query.sellerId;
+    } else if (req.query.seller && mongoose.Types.ObjectId.isValid(req.query.seller)) {
+      query.sellerId = req.query.seller;
+    }
+
+    const products = await Product.find(query)
+      .populate('brandId', 'name slug')
+      .populate('cat_id', 'cat_name name')
+      .populate('categoryId', 'name')
+      .lean()
+      .sort({ createdAt: -1 });
 
     const ProductImage = require("../models/ProductImage");
     const productIds = products.map((p) => p._id);
@@ -584,10 +629,30 @@ const getProducts = async (req, res) => {
       .sort({ sortOrder: 1, createdAt: 1 })
       .lean();
 
-    const formattedProducts = products.map(product => {
+    const Inventory = require("../models/Inventory");
+    const allInventories = await Inventory.find({ productId: { $in: productIds } }).lean();
+
+    const formattedProducts = [];
+    for (const product of products) {
       const prodImages = allImages.filter((img) => img.productId.toString() === product._id.toString());
-      return formatProductResponse(product, prodImages);
-    });
+      const prodInventory = allInventories.find((inv) => inv.productId.toString() === product._id.toString()) || null;
+      const formatted = formatProductResponse(product, prodImages, prodInventory);
+      
+      // Manually fetch missing category names
+      if (formatted.sub_cat_id && !formatted.sub_category_name) {
+        let subCat = await mongoose.model("ProductCategory").findById(formatted.sub_cat_id).lean().catch(() => null);
+        if (!subCat) subCat = await mongoose.model("ProductCategory").findById(formatted.sub_cat_id).lean().catch(() => null);
+        formatted.sub_category_name = subCat ? (subCat.sub_cat_name || subCat.cat_name || subCat.name) : null;
+      }
+      
+      if (formatted.nested_sub_cat_id && !formatted.nested_sub_category_name) {
+        let nestedCat = await mongoose.model("ProductCategory").findById(formatted.nested_sub_cat_id).lean().catch(() => null);
+        if (!nestedCat) nestedCat = await mongoose.model("ProductCategory").findById(formatted.nested_sub_cat_id).lean().catch(() => null);
+        formatted.nested_sub_category_name = nestedCat ? (nestedCat.name || nestedCat.cat_name) : null;
+      }
+      
+      formattedProducts.push(formatted);
+    }
 
     res.json(formattedProducts);
   } catch (error) {
@@ -606,7 +671,11 @@ const getProductById = async (req, res) => {
       return res.status(400).json({ message: "Invalid product ID format" });
     }
 
-    const product = await Product.findById(id).populate('brandId', 'name slug').lean();
+    const product = await Product.findById(id)
+      .populate('brandId', 'name slug')
+      .populate('cat_id', 'cat_name name')
+      .populate('categoryId', 'name')
+      .lean();
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -626,7 +695,21 @@ const getProductById = async (req, res) => {
       inventoryRecord = await Inventory.findOne({ productId: product._id }).lean();
     }
       
-    res.json(formatProductResponse(product, images, inventoryRecord));
+    const formattedProduct = formatProductResponse(product, images, inventoryRecord);
+    
+    if (formattedProduct.sub_cat_id && !formattedProduct.sub_category_name) {
+      let subCat = await mongoose.model("ProductCategory").findById(formattedProduct.sub_cat_id).lean().catch(() => null);
+      if (!subCat) subCat = await mongoose.model("ProductCategory").findById(formattedProduct.sub_cat_id).lean().catch(() => null);
+      formattedProduct.sub_category_name = subCat ? (subCat.sub_cat_name || subCat.cat_name || subCat.name) : null;
+    }
+    
+    if (formattedProduct.nested_sub_cat_id && !formattedProduct.nested_sub_category_name) {
+      let nestedCat = await mongoose.model("ProductCategory").findById(formattedProduct.nested_sub_cat_id).lean().catch(() => null);
+      if (!nestedCat) nestedCat = await mongoose.model("ProductCategory").findById(formattedProduct.nested_sub_cat_id).lean().catch(() => null);
+      formattedProduct.nested_sub_category_name = nestedCat ? (nestedCat.name || nestedCat.cat_name) : null;
+    }
+
+    res.json(formattedProduct);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -638,8 +721,7 @@ const getProductById = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      name, slug, description, shortDescription,
+    let { name, slug, description, shortDescription,
       sellerId, categoryId, cat_id, sub_cat_id, nested_sub_cat_id, brandId, sku,
       price, regular_price, salePrice, sale_price, currency,
       thumbnail, images, tags, attributes,
@@ -655,6 +737,8 @@ const updateProduct = async (req, res) => {
       inventory, // NEW
       quantity, stock_quantity, backorders, low_stock_threshold, lowStockThreshold
     } = req.body;
+
+
 
     const finalExternalUrl = externalUrl !== undefined ? externalUrl : external_url;
     const finalButtonText = buttonText !== undefined ? buttonText : button_text;
@@ -676,14 +760,14 @@ const updateProduct = async (req, res) => {
     const checkPrice = finalPrice !== undefined ? finalPrice : product.price;
     const checkSalePrice = finalSalePrice !== undefined ? finalSalePrice : product.salePrice;
 
-    if (checkPrice < 0) {
+    if (Number(checkPrice) < 0) {
       return res.status(400).json({ message: "Price cannot be negative" });
     }
     if (checkSalePrice !== undefined && checkSalePrice !== null) {
-      if (checkSalePrice < 0) {
+      if (Number(checkSalePrice) < 0) {
         return res.status(400).json({ message: "Sale price cannot be negative" });
       }
-      if (checkSalePrice >= checkPrice) {
+      if (Number(checkSalePrice) >= Number(checkPrice)) {
         return res.status(400).json({ message: "Sale price must be strictly less than the regular price" });
       }
     }
@@ -752,22 +836,28 @@ const updateProduct = async (req, res) => {
     const finalNestedSubCatId = nested_sub_cat_id !== undefined ? nested_sub_cat_id : product.nested_sub_cat_id?.toString();
 
     if (cat_id !== undefined || sub_cat_id !== undefined || nested_sub_cat_id !== undefined) {
-      if (!finalCatId || !finalSubCatId || !finalNestedSubCatId) {
-        return res.status(400).json({ message: "Complete category hierarchy (cat_id, sub_cat_id, nested_sub_cat_id) is required" });
+      if (!finalCatId || !finalSubCatId) {
+        return res.status(400).json({ message: "Category hierarchy (cat_id, sub_cat_id) is required" });
       }
-      if (!mongoose.Types.ObjectId.isValid(finalCatId) || !mongoose.Types.ObjectId.isValid(finalSubCatId) || !mongoose.Types.ObjectId.isValid(finalNestedSubCatId)) {
+      if (!mongoose.Types.ObjectId.isValid(finalCatId) || !mongoose.Types.ObjectId.isValid(finalSubCatId) || (finalNestedSubCatId && !mongoose.Types.ObjectId.isValid(finalNestedSubCatId))) {
         return res.status(400).json({ message: "Invalid category ID format" });
       }
       const cat = await ProductCategory.findById(finalCatId);
       if (!cat) return res.status(404).json({ message: "ProductCategory not found" });
-      const subCat = await ProductSubCategory.findById(finalSubCatId);
-      if (!subCat) return res.status(404).json({ message: "ProductSubCategory not found" });
-      if (subCat.cat_id.toString() !== finalCatId) return res.status(400).json({ message: "sub_cat_id does not belong to cat_id" });
-      const nestedCat = await ProductNestedSubCategory.findById(finalNestedSubCatId);
-      if (!nestedCat) return res.status(404).json({ message: "ProductNestedSubCategory not found" });
-      if (nestedCat.sub_cat_id.toString() !== finalSubCatId) {
-        return res.status(400).json({ message: "nested_sub_cat_id does not belong to the specified sub_cat_id" });
-      }
+      
+      let subCat = null;
+        if (finalSubCatId) {
+          subCat = await ProductCategory.findById(finalSubCatId);
+          if (!subCat) return res.status(404).json({ message: "ProductCategory not found" });
+          if (subCat.parentId?.toString() !== finalCatId) return res.status(400).json({ message: "sub_cat_id does not belong to cat_id" });
+        }
+      
+      let nestedCat = null;
+        if (finalNestedSubCatId) {
+          nestedCat = await ProductCategory.findById(finalNestedSubCatId);
+          if (!nestedCat) return res.status(404).json({ message: "ProductCategory not found" });
+          if (nestedCat.parentId?.toString() !== finalSubCatId) return res.status(400).json({ message: "nested_sub_cat_id does not belong to the specified sub_cat_id" });
+        }
     }
 
     
@@ -779,8 +869,11 @@ const updateProduct = async (req, res) => {
     
     if (sellerId && sellerId !== product.sellerId?.toString()) {
       if (!mongoose.Types.ObjectId.isValid(sellerId)) return res.status(400).json({ message: "Invalid sellerId format" });
-      const seller = await B2CSellerProfile.findById(sellerId);
-      if (!seller) return res.status(404).json({ message: "Seller profile not found" });
+      let seller = await B2CSellerProfile.findById(sellerId);
+      if (!seller) {
+        seller = await SellerRegistration.findById(sellerId);
+        if (!seller) return res.status(404).json({ message: "Seller profile not found" });
+      }
     }
 
     product.name = name !== undefined ? name : product.name;
@@ -810,11 +903,17 @@ const updateProduct = async (req, res) => {
     product.virtual = virtual !== undefined ? virtual : product.virtual;
     product.downloadable = downloadable !== undefined ? downloadable : product.downloadable;
     
-    if (status !== undefined) product.status = mapStatusToDb(status);
+    const isAdmin = req.admin || req.user?.role === 'admin';
     
-    product.isActive = isActive !== undefined ? isActive : product.isActive;
-    if (status !== undefined && isActive === undefined) {
-      product.isActive = product.status !== "archived";
+    if (status !== undefined) {
+      let finalStatus = mapStatusToDb(status);
+      if (!isAdmin && finalStatus !== "draft") {
+        finalStatus = "pending";
+      }
+      product.status = finalStatus;
+      product.isActive = finalStatus === "active";
+    } else {
+      product.isActive = isActive !== undefined ? isActive : product.isActive;
     }
     
     product.isFeatured = isFeatured !== undefined ? isFeatured : product.isFeatured;
@@ -1117,10 +1216,487 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// @desc    Get form fields, schema and variables by product type
+// @route   GET /api/products/schema/:productType OR GET /api/products/schema
+// @access  Public / Passive Admin
+const {
+  getSupportedProductTypes,
+  getProductSchema,
+  PRODUCT_TYPE_SCHEMAS,
+} = require("../config/productTypeConfig");
+
+const getProductTypeSchema = async (req, res) => {
+  try {
+    const requestedType = req.params.productType || req.query.type || req.query.productType;
+
+    // If no type specified, return only the list of supported product types (no variables)
+    if (!requestedType) {
+      return res.json({
+        success: true,
+        productTypes: getSupportedProductTypes(),
+      });
+    }
+
+    const schema = getProductSchema(requestedType);
+    if (!schema) {
+      return res.status(400).json({
+        message: `Invalid productType: '${requestedType}'. Supported types are: simple, grouped, external, variable`,
+        availableTypes: ["simple", "grouped", "external", "variable"],
+      });
+    }
+
+    res.json({
+      success: true,
+      data: schema,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+// @desc    Get all products for Admin (Includes full seller details & approval status)
+// @route   GET /api/products/admin/all
+// @access  Admin
+const getAdminProducts = async (req, res) => {
+  try {
+    const query = {};
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+
+    const products = await Product.find(query)
+      .populate('brandId', 'name slug')
+      .lean()
+      .sort({ createdAt: -1 });
+
+    const ProductImage = require("../models/ProductImage");
+    const productIds = products.map((p) => p._id);
+    const allImages = await ProductImage.find({ productId: { $in: productIds }, status: "active" })
+      .sort({ sortOrder: 1, createdAt: 1 })
+      .lean();
+
+    const Inventory = require("../models/Inventory");
+    const allInventories = await Inventory.find({ productId: { $in: productIds } }).lean();
+
+    const formattedProducts = [];
+    for (const product of products) {
+      const prodImages = allImages.filter((img) => img.productId.toString() === product._id.toString());
+      const prodInventory = allInventories.find((inv) => inv.productId.toString() === product._id.toString()) || null;
+      const formatted = formatProductResponse(product, prodImages, prodInventory);
+      
+      // Manually fetch missing category names
+      if (formatted.cat_id && !formatted.category_name) {
+        let cat = await mongoose.model("ProductCategory").findById(formatted.cat_id).lean().catch(() => null);
+        if (!cat) cat = await mongoose.model("Category").findById(formatted.cat_id).lean().catch(() => null);
+        formatted.category_name = cat ? (cat.cat_name || cat.name) : null;
+      }
+
+      if (formatted.sub_cat_id && !formatted.sub_category_name) {
+        let subCat = await mongoose.model("ProductCategory").findById(formatted.sub_cat_id).lean().catch(() => null);
+        if (!subCat) subCat = await mongoose.model("ProductCategory").findById(formatted.sub_cat_id).lean().catch(() => null);
+        formatted.sub_category_name = subCat ? (subCat.sub_cat_name || subCat.cat_name || subCat.name) : null;
+      }
+      
+      if (formatted.nested_sub_cat_id && !formatted.nested_sub_category_name) {
+        let nestedCat = await mongoose.model("ProductCategory").findById(formatted.nested_sub_cat_id).lean().catch(() => null);
+        if (!nestedCat) nestedCat = await mongoose.model("ProductCategory").findById(formatted.nested_sub_cat_id).lean().catch(() => null);
+        formatted.nested_sub_category_name = nestedCat ? (nestedCat.name || nestedCat.cat_name) : null;
+      }
+      
+      // Admin specific fields
+      formatted.approval_status = product.approval?.status || product.status;
+      formatted.approval = product.approval || {
+        status: product.status,
+        submitted_at: product.createdAt,
+        reviewed_by: null,
+        reviewed_at: null,
+        rejection_reason: null,
+        review_note: null
+      };
+
+      // Manually resolve sellerId against B2CSellerProfile and SellerRegistration
+      if (product.sellerId) {
+        let seller = await mongoose.model("B2CSellerProfile").findById(product.sellerId).lean().catch(() => null);
+        if (!seller) seller = await mongoose.model("SellerRegistration").findById(product.sellerId).lean().catch(() => null);
+
+        if (seller) {
+          let user = null;
+          if (seller.userId) {
+            user = await mongoose.model("User").findById(seller.userId).lean().catch(() => null);
+          }
+
+          const sellerName = seller.storeName || seller.companyName || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Unknown Seller');
+          const sellerEmail = (user && user.email) ? user.email : (seller.email || 'N/A');
+          const sellerPhone = (user && user.phone) ? user.phone : (seller.phone || 'N/A');
+
+          formatted.seller = {
+            id: seller._id?.toString(),
+            name: sellerName || 'Unknown Seller',
+            email: sellerEmail,
+            phone: sellerPhone,
+            status: seller.status || seller.onboardingStatus || 'unknown'
+          };
+        } else {
+          formatted.seller = { id: product.sellerId.toString(), name: 'Unknown Seller', email: 'N/A', status: 'unknown' };
+        }
+      } else {
+        formatted.seller = { id: null, name: 'Unknown Seller', email: 'N/A', status: 'unknown' };
+      }
+
+      formattedProducts.push(formatted);
+    }
+
+    res.json(formattedProducts);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+// @desc    Get product upload batches (for QC UI)
+// @route   GET /api/products/batches/list
+// @access  Public/Seller
+const getProductBatches = async (req, res) => {
+  try {
+    const { sellerId, seller } = req.query;
+    const finalSellerId = sellerId || seller;
+    
+    if (!finalSellerId) {
+      return res.status(400).json({ message: 'sellerId is required' });
+    }
+
+    const mongoose = require('mongoose');
+    const Product = require('../models/Product');
+    const ProductImage = require('../models/ProductImage');
+
+    // Aggregate products by batchId
+    const batches = await Product.aggregate([
+      { $match: { sellerId: new mongoose.Types.ObjectId(finalSellerId) } },
+      { 
+        $group: {
+          _id: { $cond: [ { $ifNull: ['$batchId', false] }, '$batchId', '$sku' ] },
+          productsCount: { $sum: 1 },
+          createdAt: { $max: '$createdAt' },
+          firstProductId: { $first: '$_id' },
+          category: { $first: '$categoryId' },
+          cat_id: { $first: '$cat_id' },
+          status: { $first: '$status' },
+            rejection_reason: { $first: '$approval.rejection_reason' },
+          isActive: { $min: '$isActive' }
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+    const ProductCategory = require('../models/ProductCategory');
+    const Category = require('../models/Category');
+
+    // Format for frontend
+    const result = await Promise.all(batches.map(async (b) => {
+      // Find one image for thumbnail
+      const img = await ProductImage.findOne({ productId: b.firstProductId }).lean();
+      
+      // Resolve category name
+      let catName = 'Uncategorized';
+      const catId = b.cat_id || b.category;
+      if (catId) {
+        try {
+          const cat = await ProductCategory.findById(catId).lean() || await Category.findById(catId).lean();
+          if (cat) catName = cat.cat_name || cat.name || 'Uncategorized';
+        } catch (err) { }
+      }
+
+      return {
+        id: b.firstProductId,
+        fileId: b._id,
+        productsCount: b.productsCount,
+        createdDateRaw: b.createdAt,
+        isActive: b.isActive,
+        status: b.status,
+          rejection_reason: b.rejection_reason || null,
+        category: catName,
+        image: img ? img.url : 'https://via.placeholder.com/150',
+        imageCount: img ? 1 : 0
+      };
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Admin API to verify and approve/reject a product
+// @route   PUT /api/products/admin/:id/verify
+// @access  Admin
+const verifyProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+
+
+
+    if (!['active', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be active or rejected' });
+    }
+
+    const Product = require('../models/Product');
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    product.status = status;
+    product.isActive = status === 'active';
+    
+    if (status === 'rejected' && reason) {
+      // Could log or store reason
+      console.log(`Product ${id} rejected. Reason: ${reason}`);
+    }
+
+    await product.save();
+
+    res.json({
+      success: true,
+      message: `Product successfully ${status}`,
+      product
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+
+// @desc    Reject product
+// @route   PUT /api/products/admin/:id/reject
+// @access  Private/Admin
+const rejectProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rejection_reason, reason } = req.body;
+
+
+    
+    const finalReason = rejection_reason || reason;
+
+    if (!finalReason) {
+      return res.status(400).json({ message: "rejection_reason is required" });
+    }
+
+    const Product = require('../models/Product');
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    product.status = "rejected";
+    product.isActive = false;
+    
+    if (!product.approval) {
+      product.approval = {};
+    }
+    product.approval.status = "rejected";
+    product.approval.rejection_reason = finalReason;
+    product.approval.reviewed_by = req.admin?.id || req.user?.id || null;
+    product.approval.reviewed_at = new Date();
+
+    await product.save();
+
+    res.json({
+      success: true,
+      message: "Product successfully rejected",
+      product
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+
+
+// @desc    Download Excel template for bulk upload
+// @route   GET /api/products/template/download
+// @access  Public
+const downloadProductTemplate = async (req, res) => {
+  try {
+    const xlsx = require("xlsx");
+
+    const headings = [
+      "Name*",
+      "Product Type (simple/variable/grouped)*",
+      "Short Description",
+      "Full Description",
+      "Category*",
+      "Sub Category",
+      "Nested Sub Category",
+      "Brand",
+      "SKU*",
+      "Regular Price*",
+      "Sale Price",
+      "Sale Start Date (YYYY-MM-DD)",
+      "Sale End Date (YYYY-MM-DD)",
+      "Manage Stock (Yes/No)",
+      "Stock Quantity",
+      "Low Stock Threshold",
+      "Backorders (no/notify/yes)",
+      "Sold Individually (Yes/No)",
+      "Weight (g)",
+      "Length (cm)",
+      "Width (cm)",
+      "Height (cm)",
+      "Shipping Class",
+      "Tax Status (taxable/none)",
+      "Tax Class",
+      "Virtual (Yes/No)",
+      "Downloadable (Yes/No)",
+      "Download Limit",
+      "Download Expiry (days)",
+      "Enable Reviews (Yes/No)",
+      "Purchase Note",
+      "Tags (comma separated)",
+      "Image URLs (comma separated)",
+      "Video URLs (comma separated)",
+      "Attributes (Format: Name1:Value1,Value2|Name2:Value1)"
+    ];
+
+    const ws = xlsx.utils.aoa_to_sheet([headings]);
+    const wscols = headings.map(h => ({ wch: Math.max(15, h.length + 5) }));
+    ws['!cols'] = wscols;
+
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Product_Template");
+
+    const buffer = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Disposition", 'attachment; filename="product_upload_template.xlsx"');
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    
+    res.send(buffer);
+  } catch (error) {
+    console.error("Template generation error:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+
+
+// @desc    Upload bulk products via Excel
+// @route   POST /api/products/bulk-upload
+// @access  Seller / Admin
+const bulkUploadProducts = async (req, res) => {
+  try {
+    if (!req.file && !req.files) {
+      return res.status(400).json({ message: "Please upload an excel file" });
+    }
+
+    const file = req.file || (req.files && req.files.length > 0 ? req.files[0] : null);
+    if (!file) {
+      return res.status(400).json({ message: "No file found in request" });
+    }
+
+    const xlsx = require("xlsx");
+    let workbook;
+    if (file.path) {
+      workbook = xlsx.readFile(file.path);
+    } else if (file.buffer) {
+      workbook = xlsx.read(file.buffer, { type: "buffer" });
+    } else {
+      return res.status(400).json({ message: "Invalid file format uploaded" });
+    }
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(sheet);
+
+    if (!data || data.length === 0) {
+      return res.status(400).json({ message: "Uploaded file is empty" });
+    }
+
+    const Product = require("../models/Product");
+    const sellerId = req.seller ? req.seller.id : (req.admin ? req.admin.id : null);
+    
+    // Create a batch ID
+    const batchId = "BULK-" + Date.now();
+
+    const createdProducts = [];
+    const errors = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      try {
+        const getVal = (keyPattern) => {
+          const key = Object.keys(row).find(k => k.toLowerCase().includes(keyPattern.toLowerCase()));
+          return key ? row[key] : null;
+        };
+
+        const name = getVal("Name");
+        const sku = getVal("SKU");
+        let price = getVal("Regular Price");
+        if (!price && getVal("Price")) price = getVal("Price");
+
+        if (!name) {
+           errors.push(`Row ${i + 2}: Missing required field (Name)`);
+           continue;
+        }
+
+        const newProduct = new Product({
+          name: String(name),
+          slug: String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now(),
+          sku: sku ? String(sku) : "SKU-" + Date.now() + "-" + i,
+          price: price ? Number(price) : 0,
+          regularPrice: price ? Number(price) : 0,
+          salePrice: getVal("Sale Price") ? Number(getVal("Sale Price")) : null,
+          shortDescription: getVal("Short Description") ? String(getVal("Short Description")) : "",
+          description: getVal("Full Description") ? String(getVal("Full Description")) : "",
+          sellerId: sellerId,
+          batchId: batchId,
+          status: "pending", 
+          approval: { status: "pending" },
+          isActive: false,
+          productType: getVal("Product Type") ? String(getVal("Product Type")).split('/')[0].trim().toLowerCase() : "simple",
+          manage_stock: getVal("Manage Stock") ? String(getVal("Manage Stock")).toLowerCase() === 'yes' : false,
+          weight: getVal("Weight") ? Number(getVal("Weight")) : null,
+        });
+
+        await newProduct.save();
+        createdProducts.push(newProduct);
+      } catch (err) {
+        errors.push(`Row ${i + 2}: Failed to process - ${err.message}`);
+      }
+    }
+    
+    // Optionally delete temp file
+    const fs = require('fs');
+    if (file.path && fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+
+    res.status(200).json({
+      message: "Bulk upload processed successfully",
+      successCount: createdProducts.length,
+      errorCount: errors.length,
+      errors: errors,
+      batchId: batchId
+    });
+
+  } catch (error) {
+    console.error("Bulk upload error:", error);
+    res.status(500).json({ message: "Server Error processing file", error: error.message });
+  }
+};
+
 module.exports = {
+  rejectProduct,
   createProduct,
+  verifyProduct,
+  getAdminProducts,
   getProducts,
+  getProductBatches,
   getProductById,
   updateProduct,
   deleteProduct,
+  getProductTypeSchema,
+  downloadProductTemplate,
+  bulkUploadProducts,
 };

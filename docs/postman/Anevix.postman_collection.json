@@ -359,60 +359,6 @@
           }
         },
         {
-          "name": "Send Registration OTP (Customer)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contactValue\": \"customer@yopmail.com\",\n  \"contactType\": \"email\"\n}"
-            },
-            "url": {
-              "raw": "{{live}}/auth/customer/send-registration-otp",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "customer",
-                "send-registration-otp"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Verify Registration OTP (Customer)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contactValue\": \"customer@yopmail.com\",\n  \"contactType\": \"email\",\n  \"otp\": \"123456\"\n}"
-            },
-            "url": {
-              "raw": "{{live}}/auth/customer/verify-registration-otp",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "customer",
-                "verify-registration-otp"
-              ]
-            }
-          }
-        },
-        {
           "name": "Register Customer",
           "request": {
             "method": "POST",
@@ -463,62 +409,6 @@
                 "auth",
                 "customer",
                 "login"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Email (Customer)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"customer@yopmail.com\",\n  \"otp\": \"123456\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{live}}/auth/customer/verify-email",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "customer",
-                "verify-email"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Mobile (Customer)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phoneNumber\": \"1234567890\",\n  \"otp\": \"123456\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{live}}/auth/customer/verify-mobile",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "customer",
-                "verify-mobile"
               ]
             }
           },
@@ -591,34 +481,6 @@
           "response": []
         },
         {
-          "name": "Update Unverified Contact (Customer)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\",\n  \"email\": \"new@example.com\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{live}}/auth/customer/update-unverified-contact",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "customer",
-                "update-unverified-contact"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Forgot Password (Customer)",
           "request": {
             "method": "POST",
@@ -674,6 +536,102 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Update Unverified Contact (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactType\": \"email\",\n  \"oldContact\": \"oldcustomer@yopmail.com\",\n  \"newContact\": \"newcustomer@yopmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/update-unverified-contact",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "update-unverified-contact"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send General Registration OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact\": \"customer@yopmail.com\",\n  \"type\": \"email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/send-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "send-registration-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify General Registration OTP (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact\": \"customer@yopmail.com\",\n  \"type\": \"email\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/customer/verify-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "customer",
+                "verify-registration-otp"
+              ]
+            }
+          }
         }
       ]
     },
@@ -809,60 +767,6 @@
           }
         },
         {
-          "name": "Send Registration OTP (Business)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contactValue\": \"business@yopmail.com\",\n  \"contactType\": \"email\"\n}"
-            },
-            "url": {
-              "raw": "{{live}}/auth/business/send-registration-otp",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "business",
-                "send-registration-otp"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Verify Registration OTP (Business)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contactValue\": \"business@yopmail.com\",\n  \"contactType\": \"email\",\n  \"otp\": \"123456\"\n}"
-            },
-            "url": {
-              "raw": "{{live}}/auth/business/verify-registration-otp",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "business",
-                "verify-registration-otp"
-              ]
-            }
-          }
-        },
-        {
           "name": "Register Business",
           "request": {
             "method": "POST",
@@ -913,62 +817,6 @@
                 "auth",
                 "business",
                 "login"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Email (Business)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"business@yopmail.com\",\n  \"otp\": \"123456\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{live}}/auth/business/verify-email",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "business",
-                "verify-email"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Mobile (Business)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phoneNumber\": \"0987654321\",\n  \"otp\": \"123456\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{live}}/auth/business/verify-mobile",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "business",
-                "verify-mobile"
               ]
             }
           },
@@ -1041,34 +889,6 @@
           "response": []
         },
         {
-          "name": "Update Unverified Contact (Business)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"USER_ID\",\n  \"email\": \"new@business.com\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{live}}/auth/business/update-unverified-contact",
-              "host": [
-                "{{live}}"
-              ],
-              "path": [
-                "auth",
-                "business",
-                "update-unverified-contact"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Forgot Password (Business)",
           "request": {
             "method": "POST",
@@ -1124,6 +944,102 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Update Unverified Contact (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactType\": \"email\",\n  \"oldContact\": \"oldbusiness@yopmail.com\",\n  \"newContact\": \"newbusiness@yopmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/update-unverified-contact",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "update-unverified-contact"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send General Registration OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact\": \"business@yopmail.com\",\n  \"type\": \"email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/send-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "send-registration-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify General Registration OTP (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact\": \"business@yopmail.com\",\n  \"type\": \"email\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/auth/business/verify-registration-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "auth",
+                "business",
+                "verify-registration-otp"
+              ]
+            }
+          }
         }
       ]
     },
@@ -1255,6 +1171,104 @@
                   "language": "json"
                 }
               }
+            }
+          }
+        },
+        {
+          "name": "Send Mobile OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+919876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/seller/onboarding/mobile/send-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "seller",
+                "onboarding",
+                "mobile",
+                "send-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Mobile OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"+919876543210\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/seller/onboarding/mobile/verify-otp",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "seller",
+                "onboarding",
+                "mobile",
+                "verify-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register Complete B2C Seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalInfo\": {\n    \"fullName\": \"John Doe\",\n    \"mobile\": \"+919876543210\",\n    \"email\": \"john.doe@example.com\",\n    \"dateOfBirth\": \"1990-01-01\",\n    \"pan\": \"ABCDE1234F\",\n    \"residentialAddress\": {\n      \"street\": \"123 Main St\",\n      \"city\": \"Mumbai\",\n      \"state\": \"MH\",\n      \"zipCode\": \"400001\",\n      \"country\": \"India\"\n    }\n  },\n  \"businessInfo\": {\n    \"businessName\": \"Doe Enterprises\",\n    \"businessType\": \"SOLE_PROPRIETORSHIP\",\n    \"sellerType\": \"RETAILER\",\n    \"gstin\": \"27ABCDE1234F1Z5\",\n    \"businessAddress\": {\n      \"street\": \"1\",\n      \"city\": \"A\",\n      \"state\": \"B\",\n      \"zipCode\": \"C\",\n      \"country\": \"D\"\n    },\n    \"pickupAddress\": {\n      \"street\": \"1\",\n      \"city\": \"A\",\n      \"state\": \"B\",\n      \"zipCode\": \"C\",\n      \"country\": \"D\"\n    },\n    \"categories\": [\n      \"Electronics\"\n    ],\n    \"brands\": [\n      \"BrandA\"\n    ]\n  },\n  \"bankingInfo\": {\n    \"accountHolderName\": \"John Doe\",\n    \"bankName\": \"State Bank of India\",\n    \"accountNumber\": \"12345678901\",\n    \"ifsc\": \"SBIN0001234\",\n    \"bankDocumentUrl\": \"https://example.com/cheque.pdf\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/seller/onboarding/register-complete",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "seller",
+                "onboarding",
+                "register-complete"
+              ]
             }
           }
         }
@@ -1864,21 +1878,49 @@
       ]
     },
     {
-      "name": "Seller Onboarding",
+      "name": "Campaigns & Email Automation",
       "item": [
         {
-          "name": "Send Mobile OTP",
+          "name": "Get Campaign Metadata & Merge Tags",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/campaigns/meta",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                "meta"
+              ]
+            },
+            "description": "Get all available merge tags categorized, trigger events list, and send type options."
+          }
+        },
+        {
+          "name": "Create When Triggered Campaign",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mobile\": \"+919876543210\"\n}",
+              "raw": "{\n  \"name\": \"Customer Welcome Onboarding\",\n  \"templateId\": \"TEMPLATE_ID_HERE\",\n  \"sendType\": \"triggered\",\n  \"triggerEvent\": \"WELCOME_USER\",\n  \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1886,32 +1928,34 @@
               }
             },
             "url": {
-              "raw": "{{live}}/seller/onboarding/mobile/send-otp",
+              "raw": "{{live}}/admin/campaigns",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "seller",
-                "onboarding",
-                "mobile",
-                "send-otp"
+                "admin",
+                "campaigns"
               ]
             }
           }
         },
         {
-          "name": "Verify Mobile OTP",
+          "name": "Create Scheduled Campaign",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mobile\": \"+919876543210\",\n  \"otp\": \"123456\"\n}",
+              "raw": "{\n  \"name\": \"Weekend Flash Sale Announcement\",\n  \"templateId\": \"TEMPLATE_ID_HERE\",\n  \"sendType\": \"scheduled\",\n  \"scheduledAt\": \"2026-09-24T10:00:16.507Z\",\n  \"targetAudience\": \"customers\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1919,32 +1963,34 @@
               }
             },
             "url": {
-              "raw": "{{live}}/seller/onboarding/mobile/verify-otp",
+              "raw": "{{live}}/admin/campaigns",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "seller",
-                "onboarding",
-                "mobile",
-                "verify-otp"
+                "admin",
+                "campaigns"
               ]
             }
           }
         },
         {
-          "name": "Register Complete B2C Seller",
+          "name": "Create Send Now Campaign",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"personalInfo\": {\n    \"fullName\": \"John Doe\",\n    \"mobile\": \"+919876543210\",\n    \"email\": \"john.doe@example.com\",\n    \"dateOfBirth\": \"1990-01-01\",\n    \"pan\": \"ABCDE1234F\",\n    \"residentialAddress\": {\n      \"street\": \"123 Main St\",\n      \"city\": \"Mumbai\",\n      \"state\": \"MH\",\n      \"zipCode\": \"400001\",\n      \"country\": \"India\"\n    }\n  },\n  \"businessInfo\": {\n    \"businessName\": \"Doe Enterprises\",\n    \"businessType\": \"SOLE_PROPRIETORSHIP\",\n    \"sellerType\": \"RETAILER\",\n    \"gstin\": \"27ABCDE1234F1Z5\",\n    \"businessAddress\": {\n      \"street\": \"1\",\n      \"city\": \"A\",\n      \"state\": \"B\",\n      \"zipCode\": \"C\",\n      \"country\": \"D\"\n    },\n    \"pickupAddress\": {\n      \"street\": \"1\",\n      \"city\": \"A\",\n      \"state\": \"B\",\n      \"zipCode\": \"C\",\n      \"country\": \"D\"\n    },\n    \"categories\": [\n      \"Electronics\"\n    ],\n    \"brands\": [\n      \"BrandA\"\n    ]\n  },\n  \"bankingInfo\": {\n    \"accountHolderName\": \"John Doe\",\n    \"bankName\": \"State Bank of India\",\n    \"accountNumber\": \"12345678901\",\n    \"ifsc\": \"SBIN0001234\",\n    \"bankDocumentUrl\": \"https://example.com/cheque.pdf\"\n  }\n}",
+              "raw": "{\n  \"name\": \"System Maintenance Notice\",\n  \"templateId\": \"TEMPLATE_ID_HERE\",\n  \"sendType\": \"send_now\",\n  \"targetAudience\": \"all_users\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1952,14 +1998,277 @@
               }
             },
             "url": {
-              "raw": "{{live}}/seller/onboarding/register-complete",
+              "raw": "{{live}}/admin/campaigns",
               "host": [
                 "{{live}}"
               ],
               "path": [
-                "seller",
-                "onboarding",
-                "register-complete"
+                "admin",
+                "campaigns"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/campaigns?page=1&limit=20",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Campaign By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/campaigns/:id",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "CAMPAIGN_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Campaign",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Campaign Name\",\n  \"templateId\": \"NEW_TEMPLATE_ID\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/admin/campaigns/:id",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "CAMPAIGN_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Toggle Campaign Status (Active/Pause)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/campaigns/:id/toggle",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                ":id",
+                "toggle"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "CAMPAIGN_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Campaign",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/campaigns/:id",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "CAMPAIGN_ID_HERE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Preview Campaign with Merge Tags",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Order #{{order_id}} Confirmed for {{first_name}}!\",\n  \"body\": \"<h1>Hi {{first_name}},</h1><p>Your order #{{order_id}} is {{order_status}}.</p><p>Total: {{currency}} {{order_total}}</p>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/admin/campaigns/preview",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                "preview"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Test Send Campaign Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@yopmail.com\",\n  \"subject\": \"Live Test: Order #{{order_id}} Update\",\n  \"body\": \"<p>Hi {{first_name}}, this is a live test from Anevix Campaign Manager.</p>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/admin/campaigns/test-send",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                "test-send"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Campaign Execution Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/admin/campaigns/:id/logs?page=1&limit=50",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "admin",
+                "campaigns",
+                ":id",
+                "logs"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "CAMPAIGN_ID_HERE"
+                }
               ]
             }
           }
@@ -1967,21 +2276,22 @@
       ]
     },
     {
-      "name": "Categories",
+      "name": "Product Categories",
       "item": [
         {
-          "name": "Create Category",
+          "name": "1. Create Top-Level Category (Level 1)",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Electronics\",\n  \"slug\": \"electronics\",\n  \"description\": \"All electronic devices\",\n  \"isActive\": true,\n  \"sortOrder\": 1\n}",
+              "raw": "{\n  \"name\": \"Clothing & Apparel\",\n  \"description\": \"Men, women, and kids clothing collection\",\n  \"parent\": null,\n  \"display\": \"default\",\n  \"image\": {\n    \"src\": \"https://example.com/images/clothing.jpg\",\n    \"name\": \"clothing.jpg\",\n    \"alt\": \"Clothing & Apparel\"\n  },\n  \"menu_order\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1989,66 +2299,231 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/categories",
+              "raw": "{{live}}/api/product-categories",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
               "path": [
                 "api",
-                "categories"
+                "product-categories"
+              ]
+            },
+            "description": "Creates a Root / Top-Level category (Level 1) where parent is null."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Create Sub-Category (Level 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Men's Wear\",\n  \"description\": \"Men's fashion and garments\",\n  \"parent\": \"<PASTE_LEVEL_1_CATEGORY_ID_HERE>\",\n  \"display\": \"products\",\n  \"image\": {\n    \"src\": \"https://example.com/images/menswear.jpg\",\n    \"name\": \"menswear.jpg\",\n    \"alt\": \"Men's Wear\"\n  },\n  \"menu_order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/api/product-categories",
+              "host": [
+                "{{live}}"
               ],
-              "port": "5000"
-            }
-          }
+              "path": [
+                "api",
+                "product-categories"
+              ]
+            },
+            "description": "Creates a Sub-Category (Level 2). Provide the Level 1 category ID in the `parent` field."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Create Nested Sub-Category (Level 3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Shirts\",\n  \"description\": \"Formal and casual shirts for men\",\n  \"parent\": \"<PASTE_LEVEL_2_SUB_CATEGORY_ID_HERE>\",\n  \"display\": \"products\",\n  \"image\": {\n    \"src\": \"https://example.com/images/shirts.jpg\",\n    \"name\": \"shirts.jpg\",\n    \"alt\": \"Shirts\"\n  },\n  \"menu_order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/api/product-categories",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "product-categories"
+              ]
+            },
+            "description": "Creates a Nested Sub-Category (Level 3). Provide the Level 2 Sub-Category ID in the `parent` field."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Create Deep-Nested Category (Level 4+)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Slim Fit Casual Shirts\",\n  \"description\": \"Cotton slim fit casual shirts\",\n  \"parent\": \"<PASTE_LEVEL_3_NESTED_SUB_CATEGORY_ID_HERE>\",\n  \"display\": \"products\",\n  \"image\": {\n    \"src\": \"https://example.com/images/slimfit.jpg\",\n    \"name\": \"slimfit.jpg\",\n    \"alt\": \"Slim Fit Casual Shirts\"\n  },\n  \"menu_order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{live}}/api/product-categories",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "product-categories"
+              ]
+            },
+            "description": "Creates a Deeply Nested Category (Level 4, Level 5, etc.). Provide any parent category ID in the `parent` field."
+          },
+          "response": []
         },
         {
           "name": "Get All Categories",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "description": "Optional for public"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/categories",
+              "raw": "{{live}}/api/product-categories",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
               "path": [
                 "api",
-                "categories"
+                "product-categories"
+              ]
+            },
+            "description": "Fetches all categories across all levels."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Top-Level Categories (parent=null)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{live}}/api/product-categories?parent=null",
+              "host": [
+                "{{live}}"
               ],
-              "port": "5000"
-            }
-          }
+              "path": [
+                "api",
+                "product-categories"
+              ],
+              "query": [
+                {
+                  "key": "parent",
+                  "value": "null",
+                  "description": "Filter only root/top-level categories"
+                }
+              ]
+            },
+            "description": "Fetches only Level 1 root categories."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Sub-Categories By Parent ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{live}}/api/product-categories?parent={{category_id}}",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "product-categories"
+              ],
+              "query": [
+                {
+                  "key": "parent",
+                  "value": "{{category_id}}",
+                  "description": "Pass any category ID to fetch its immediate direct children"
+                }
+              ]
+            },
+            "description": "Fetches immediate children of any parent category (Sub-categories or Nested Sub-categories)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories Tree (Hierarchical)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{live}}/api/product-categories/tree",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "product-categories",
+                "tree"
+              ]
+            },
+            "description": "Fetches full recursive category tree: Level 1 -> children (Level 2) -> children (Level 3) -> children (Level 4+)."
+          },
+          "response": []
         },
         {
           "name": "Get Category By ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "description": "Optional for public"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/categories/6aa8f11e33cfcc487fff8c5e",
+              "raw": "{{live}}/api/product-categories/{{category_id}}",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
               "path": [
                 "api",
-                "categories",
-                "6aa8f11e33cfcc487fff8c5e"
-              ],
-              "port": "5000"
-            }
-          }
+                "product-categories",
+                "{{category_id}}"
+              ]
+            },
+            "description": "Fetches single category with parent, parent_name, and children."
+          },
+          "response": []
         },
         {
           "name": "Update Category",
@@ -2057,12 +2532,13 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Electronics Updated\",\n  \"description\": \"Updated description\"\n}",
+              "raw": "{\n  \"name\": \"Clothing & Apparel Updated\",\n  \"description\": \"Updated category description\",\n  \"parent\": null,\n  \"display\": \"default\",\n  \"menu_order\": 2\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2070,18 +2546,18 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/categories/6aa8f11e33cfcc487fff8c5e",
+              "raw": "{{live}}/api/product-categories/{{category_id}}",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
               "path": [
                 "api",
-                "categories",
-                "6aa8f11e33cfcc487fff8c5e"
-              ],
-              "port": "5000"
+                "product-categories",
+                "{{category_id}}"
+              ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete Category",
@@ -2090,412 +2566,23 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:5000/api/categories/6aa8f11e33cfcc487fff8c5e",
-              "host": [
-                "localhost"
-              ],
-              "path": [
-                "api",
-                "categories",
-                "6aa8f11e33cfcc487fff8c5e"
-              ],
-              "port": "5000"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Product Categories (New Hierarchy)",
-      "item": [
-        {
-          "name": "Create Top-Level Category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"cat_name\": \"Clothing\",\n  \"slug\": \"clothing\",\n  \"image\": \"https://example.com/clothing.jpg\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/product-categories",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get All Top-Level Categories",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/product-categories",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Top-Level Category",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
+                "value": "Bearer {{jwt_token}}",
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"cat_name\": \"Clothing & Apparel\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "http://localhost:5000/api/product-categories/6aabb9e07f05a228c645e53e",
-              "protocol": "http",
+              "raw": "{{live}}/api/product-categories/{{category_id}}",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "product-categories",
-                "6aabb9e07f05a228c645e53e"
+                "{{category_id}}"
               ]
             }
-          }
-        },
-        {
-          "name": "Delete Top-Level Category",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:5000/api/product-categories/6aabb9e07f05a228c645e53e",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-categories",
-                "6aabb9e07f05a228c645e53e"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Sub-Category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"cat_id\": \"<INSERT_CAT_ID_HERE>\",\n  \"sub_cat_name\": \"Men's Wear\",\n  \"slug\": \"mens-wear\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/product-sub-categories",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-sub-categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get All Sub-Categories",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/product-sub-categories",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-sub-categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Sub-Categories by cat_id",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/product-sub-categories?cat_id=<INSERT_CAT_ID_HERE>",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-sub-categories"
-              ],
-              "query": [
-                {
-                  "key": "cat_id",
-                  "value": "<INSERT_CAT_ID_HERE>"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Sub-Category",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"sub_cat_name\": \"Men Shoes\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/product-sub-categories/6aabb9e07f05a228c645e53f",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-sub-categories",
-                "6aabb9e07f05a228c645e53f"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Sub-Category",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:5000/api/product-sub-categories/6aabb9e07f05a228c645e53f",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-sub-categories",
-                "6aabb9e07f05a228c645e53f"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Nested Sub-Category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"cat_id\": \"<INSERT_CAT_ID_HERE>\",\n  \"sub_cat_id\": \"<INSERT_SUB_CAT_ID_HERE>\",\n  \"name\": \"T-Shirts\",\n  \"slug\": \"mens-t-shirts\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/product-nested-sub-categories",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-nested-sub-categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get All Nested Sub-Categories",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/product-nested-sub-categories",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-nested-sub-categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Nested Sub-Categories by IDs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/product-nested-sub-categories?cat_id=<INSERT_CAT_ID>&sub_cat_id=<INSERT_SUB_CAT_ID>",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-nested-sub-categories"
-              ],
-              "query": [
-                {
-                  "key": "cat_id",
-                  "value": "<INSERT_CAT_ID>"
-                },
-                {
-                  "key": "sub_cat_id",
-                  "value": "<INSERT_SUB_CAT_ID>"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Nested Sub-Category",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Casual Sneakers\",\n  \"description\": \"Updated description\",\n  \"isActive\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/product-nested-sub-categories/6aabb9e17f05a228c645e540",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-nested-sub-categories",
-                "6aabb9e17f05a228c645e540"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Nested Sub-Category",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:5000/api/product-nested-sub-categories/6aabb9e17f05a228c645e540",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "product-nested-sub-categories",
-                "6aabb9e17f05a228c645e540"
-              ]
-            }
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -2522,11 +2609,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/brands",
+              "raw": "{{live}}/api/brands",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "brands"
@@ -2546,11 +2632,10 @@
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/brands",
+              "raw": "{{live}}/api/brands",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "brands"
@@ -2570,11 +2655,10 @@
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/brands/BRAND_ID_HERE",
+              "raw": "{{live}}/api/brands/BRAND_ID_HERE",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "brands",
@@ -2603,11 +2687,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/brands/BRAND_ID_HERE",
+              "raw": "{{live}}/api/brands/BRAND_ID_HERE",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "brands",
@@ -2627,11 +2710,10 @@
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/brands/BRAND_ID_HERE",
+              "raw": "{{live}}/api/brands/BRAND_ID_HERE",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "brands",
@@ -2646,12 +2728,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/brands/{{BRAND_ID}}/products?page=1&limit=10",
+              "raw": "{{live}}/api/brands/{{BRAND_ID}}/products?page=1&limit=10",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "brands",
@@ -2678,13 +2759,137 @@
       "name": "Products",
       "item": [
         {
+          "name": "Get Supported Product Types",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/products/schema",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "schema"
+              ]
+            },
+            "description": "Get list of available product types (simple, grouped, external, variable) without variables."
+          }
+        },
+        {
+          "name": "Get Simple Product Schema",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/products/schema/simple",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "schema",
+                "simple"
+              ]
+            },
+            "description": "Get form variables, tabs, field definitions, and validation rules for simple products."
+          }
+        },
+        {
+          "name": "Get Grouped Product Schema",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/products/schema/grouped",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "schema",
+                "grouped"
+              ]
+            },
+            "description": "Get form variables, tabs, field definitions, and grouped product linking rules for grouped products."
+          }
+        },
+        {
+          "name": "Get External Product Schema",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/products/schema/external",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "schema",
+                "external"
+              ]
+            },
+            "description": "Get form variables, tabs, external URL fields, and button text definitions for external/affiliate products."
+          }
+        },
+        {
+          "name": "Get Variable Product Schema",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/api/products/schema/variable",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "schema",
+                "variable"
+              ]
+            },
+            "description": "Get form variables, tabs, attribute definitions, and variation matrix fields for variable products."
+          }
+        },
+        {
           "name": "Create Product",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
               }
             ],
             "body": {
@@ -2697,11 +2902,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/products",
+              "raw": "{{live}}/api/products",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products"
@@ -2716,7 +2920,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}",
                 "type": "text"
               }
             ],
@@ -2730,12 +2934,11 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/products",
+              "raw": "{{live}}/api/products",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products"
@@ -2750,7 +2953,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}",
                 "type": "text"
               }
             ],
@@ -2764,12 +2967,11 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/products",
+              "raw": "{{live}}/api/products",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products"
@@ -2784,7 +2986,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}",
                 "type": "text"
               }
             ],
@@ -2798,12 +3000,11 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/products",
+              "raw": "{{live}}/api/products",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products"
@@ -2818,7 +3019,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
               }
             ],
             "body": {
@@ -2831,11 +3032,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/products",
+              "raw": "{{live}}/api/products",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products"
@@ -2851,16 +3051,15 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}",
                 "description": "Optional for public"
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/products",
+              "raw": "{{live}}/api/products",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products"
@@ -2875,16 +3074,15 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}",
                 "description": "Optional for public"
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac",
+              "raw": "{{live}}/api/products/6aa91b5ceb110981a58a78ac",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products",
@@ -2900,7 +3098,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
               }
             ],
             "body": {
@@ -2913,11 +3111,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac",
+              "raw": "{{live}}/api/products/6aa91b5ceb110981a58a78ac",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products",
@@ -2934,15 +3131,14 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{ADMIN_TOKEN}}"
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac",
+              "raw": "{{live}}/api/products/6aa91b5ceb110981a58a78ac",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products",
@@ -2987,12 +3183,11 @@
                   ]
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/images/bulk",
+                  "raw": "{{live}}/api/products/images/bulk",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3024,12 +3219,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images/bulk-link",
+                  "raw": "{{live}}/api/products/{{PRODUCT_ID}}/images/bulk-link",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3052,12 +3246,11 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a/primary",
+                  "raw": "{{live}}/api/product-images/6aa91bc6fd1dfea0f2fe4d2a/primary",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "product-images",
@@ -3079,12 +3272,11 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
+                  "raw": "{{live}}/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "product-images",
@@ -3114,12 +3306,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
+                  "raw": "{{live}}/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "product-images",
@@ -3140,12 +3331,11 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images",
+                  "raw": "{{live}}/api/products/{{PRODUCT_ID}}/images",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3167,12 +3357,11 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
+                  "raw": "{{live}}/api/product-images/6aa91bc6fd1dfea0f2fe4d2a",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "product-images",
@@ -3202,12 +3391,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images",
+                  "raw": "{{live}}/api/products/{{PRODUCT_ID}}/images",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3238,12 +3426,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/images",
+                  "raw": "{{live}}/api/products/{{PRODUCT_ID}}/images",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3279,12 +3466,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/inventory",
+                  "raw": "{{live}}/api/products/{{PRODUCT_ID}}/inventory",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3306,12 +3492,11 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/inventory",
+                  "raw": "{{live}}/api/products/{{PRODUCT_ID}}/inventory",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3342,12 +3527,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/products/{{PRODUCT_ID}}/variants/6aa9255916b53d9055234395/inventory",
+                  "raw": "{{live}}/api/products/{{PRODUCT_ID}}/variants/6aa9255916b53d9055234395/inventory",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "products",
@@ -3371,12 +3555,11 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18",
+                  "raw": "{{live}}/api/inventory/6aa92576dd23409cfc369a18",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "inventory",
@@ -3406,12 +3589,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18",
+                  "raw": "{{live}}/api/inventory/6aa92576dd23409cfc369a18",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "inventory",
@@ -3441,12 +3623,11 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18/adjust",
+                  "raw": "{{live}}/api/inventory/6aa92576dd23409cfc369a18/adjust",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "inventory",
@@ -3468,12 +3649,11 @@
                   }
                 ],
                 "url": {
-                  "raw": "http://localhost:5000/api/inventory/6aa92576dd23409cfc369a18",
+                  "raw": "{{live}}/api/inventory/6aa92576dd23409cfc369a18",
                   "protocol": "http",
                   "host": [
-                    "localhost"
+                    "{{live}}"
                   ],
-                  "port": "5000",
                   "path": [
                     "api",
                     "inventory",
@@ -3483,6 +3663,29 @@
               }
             }
           ]
+        },
+        {
+          "name": "Get Supported Product Types (Direct /products/schema)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{B2C_SELLER_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{live}}/products/schema",
+              "host": [
+                "{{live}}"
+              ],
+              "path": [
+                "products",
+                "schema"
+              ]
+            },
+            "description": "Alternative direct alias route mounted at /products/schema for frontend consumption."
+          }
         }
       ]
     },
@@ -3509,11 +3712,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/variants",
+              "raw": "{{live}}/api/products/6aa91b5ceb110981a58a78ac/variants",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products",
@@ -3535,11 +3737,10 @@
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/products/6aa91b5ceb110981a58a78ac/variants",
+              "raw": "{{live}}/api/products/6aa91b5ceb110981a58a78ac/variants",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "products",
@@ -3569,11 +3770,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/variants/6aa91bc6fd1dfea0f2fe4d28",
+              "raw": "{{live}}/api/variants/6aa91bc6fd1dfea0f2fe4d28",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "variants",
@@ -3593,11 +3793,10 @@
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/variants/6aa91bc6fd1dfea0f2fe4d28",
+              "raw": "{{live}}/api/variants/6aa91bc6fd1dfea0f2fe4d28",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "variants",
@@ -3644,12 +3843,11 @@
               ]
             },
             "url": {
-              "raw": "http://localhost:5000/api/upload/thumbnail",
+              "raw": "{{live}}/api/upload/thumbnail",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "upload",
@@ -3680,12 +3878,11 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/upload/init",
+              "raw": "{{live}}/api/upload/init",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "upload",
@@ -3729,12 +3926,11 @@
               ]
             },
             "url": {
-              "raw": "http://localhost:5000/api/upload/images/batch",
+              "raw": "{{live}}/api/upload/images/batch",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "upload",
@@ -3757,12 +3953,11 @@
               }
             ],
             "url": {
-              "raw": "http://localhost:5000/api/upload/stream/:uploadId",
+              "raw": "{{live}}/api/upload/stream/:uploadId",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "upload",
@@ -3786,12 +3981,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/upload/progress/:uploadId",
+              "raw": "{{live}}/api/upload/progress/:uploadId",
               "protocol": "http",
               "host": [
-                "localhost"
+                "{{live}}"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "upload",
@@ -3810,6 +4004,618 @@
           }
         }
       ]
+    },
+    {
+      "name": "Category Configuration",
+      "item": [
+        {
+          "name": "Combined Category Configuration",
+          "item": [
+            {
+              "name": "Get Category Configuration (Nested SubCategory)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}",
+                    "type": "text",
+                    "description": "Optional. Include to see inactive fields/configs as admin."
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-configs/ProductNestedSubCategory/:categoryId",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-configs",
+                    "ProductNestedSubCategory",
+                    ":categoryId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "categoryId",
+                      "value": "651a2b3c4d5e6f7a8b9c0d22",
+                      "description": "Target ProductNestedSubCategory ID"
+                    }
+                  ]
+                },
+                "description": "Main aggregated configuration endpoint. Returns breadcrumb, inherited custom fields, field options, guidelines, and catalog rules."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category Custom Fields",
+          "item": [
+            {
+              "name": "Create Category Custom Field",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"category_id\": \"651a2b3c4d5e6f7a8b9c0d22\",\n  \"category_type\": \"ProductNestedSubCategory\",\n  \"field_key\": \"fabric_type\",\n  \"field_name\": \"Fabric Type\",\n  \"field_type\": \"select\",\n  \"is_required\": true,\n  \"menu_order\": 1,\n  \"field_config\": {\n    \"placeholder\": \"Select Fabric\"\n  },\n  \"validation_config\": {}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{live}}/api/category-custom-fields",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-fields"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Category Custom Fields",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-custom-fields?category_id=651a2b3c4d5e6f7a8b9c0d22&category_type=ProductNestedSubCategory",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-fields"
+                  ],
+                  "query": [
+                    {
+                      "key": "category_id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d22"
+                    },
+                    {
+                      "key": "category_type",
+                      "value": "ProductNestedSubCategory"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Custom Field by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-custom-fields/:id",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-fields",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d40"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Custom Field",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"field_name\": \"Fabric Type (Updated)\",\n  \"is_required\": false,\n  \"menu_order\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{live}}/api/category-custom-fields/:id",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-fields",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d40"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Custom Field",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-custom-fields/:id",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-fields",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d40"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category Custom Field Values",
+          "item": [
+            {
+              "name": "Upsert Custom Field Values",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"cat_custom_field_id\": \"651a2b3c4d5e6f7a8b9c0d40\",\n  \"field_value\": {\n    \"options\": [\n      {\n        \"value\": \"cotton\",\n        \"label\": \"Cotton\"\n      },\n      {\n        \"value\": \"silk\",\n        \"label\": \"Silk\"\n      },\n      {\n        \"value\": \"chiffon\",\n        \"label\": \"Chiffon\"\n      }\n    ]\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{live}}/api/category-custom-field-values",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-field-values"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Custom Field Values by Field ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{live}}/api/category-custom-field-values/:fieldId",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-field-values",
+                    ":fieldId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "fieldId",
+                      "value": "651a2b3c4d5e6f7a8b9c0d40"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Custom Field Values by Field ID",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-custom-field-values/:fieldId",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-custom-field-values",
+                    ":fieldId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "fieldId",
+                      "value": "651a2b3c4d5e6f7a8b9c0d40"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category Guidelines",
+          "item": [
+            {
+              "name": "Create Category Guideline",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"category_id\": \"651a2b3c4d5e6f7a8b9c0d22\",\n  \"category_type\": \"ProductNestedSubCategory\",\n  \"guideline_type\": \"general\",\n  \"title\": \"General Catalog Guidelines\",\n  \"description\": \"Rules for creating catalog under Western Gowns\",\n  \"content\": {\n    \"items\": [\n      {\n        \"text\": \"Add minimum 1 and maximum 9 products per catalog\",\n        \"order\": 1\n      },\n      {\n        \"text\": \"Upload products from the exact selected category\",\n        \"order\": 2\n      }\n    ]\n  },\n  \"menu_order\": 1,\n  \"is_active\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{live}}/api/category-guidelines",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-guidelines"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Category Guidelines",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-guidelines?category_id=651a2b3c4d5e6f7a8b9c0d22&category_type=ProductNestedSubCategory&guideline_type=general",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-guidelines"
+                  ],
+                  "query": [
+                    {
+                      "key": "category_id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d22"
+                    },
+                    {
+                      "key": "category_type",
+                      "value": "ProductNestedSubCategory"
+                    },
+                    {
+                      "key": "guideline_type",
+                      "value": "general"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Category Guideline by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-guidelines/:id",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-guidelines",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d50"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Category Guideline",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Updated General Catalog Guidelines\",\n  \"content\": {\n    \"items\": [\n      {\n        \"text\": \"Add minimum 2 and maximum 9 products per catalog\",\n        \"order\": 1\n      }\n    ]\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{live}}/api/category-guidelines/:id",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-guidelines",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d50"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Category Guideline",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-guidelines/:id",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-guidelines",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d50"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Category Catalog Config",
+          "item": [
+            {
+              "name": "Upsert Catalog Config",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"category_id\": \"651a2b3c4d5e6f7a8b9c0d22\",\n  \"category_type\": \"ProductNestedSubCategory\",\n  \"measurement\": {\n    \"enabled\": true,\n    \"image\": \"https://cdn.example.com/measurements/western-gowns.png\",\n    \"title\": \"Western Gowns Size Guide\"\n  },\n  \"product_image\": {\n    \"min_images\": 1,\n    \"max_images\": 9,\n    \"primary_image_required\": true,\n    \"front_image_required\": true\n  },\n  \"catalogue\": {\n    \"min_products\": 1,\n    \"max_products\": 9\n  },\n  \"is_active\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{live}}/api/category-catalog-configs",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-catalog-configs"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Catalog Config by Category",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-catalog-configs/:categoryType/:categoryId",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-catalog-configs",
+                    ":categoryType",
+                    ":categoryId"
+                  ],
+                  "variable": [
+                    {
+                      "key": "categoryType",
+                      "value": "ProductNestedSubCategory"
+                    },
+                    {
+                      "key": "categoryId",
+                      "value": "651a2b3c4d5e6f7a8b9c0d22"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Catalog Config by ID",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{ADMIN_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{live}}/api/category-catalog-configs/:id",
+                  "host": [
+                    "{{live}}"
+                  ],
+                  "path": [
+                    "api",
+                    "category-catalog-configs",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "651a2b3c4d5e6f7a8b9c0d60"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "try {",
+          "    var jsonData = pm.response.json();",
+          "    if (jsonData && jsonData.token) {",
+          "        var path = pm.request.url.getPath();",
+          "        if (path.includes('admin')) {",
+          "            pm.environment.set('ADMIN_TOKEN', jsonData.token);",
+          "        } else if (path.includes('seller') || path.includes('business')) {",
+          "            pm.environment.set('SELLER_TOKEN', jsonData.token);",
+          "            pm.environment.set('TOKEN', jsonData.token);",
+          "        } else {",
+          "            pm.environment.set('TOKEN', jsonData.token);",
+          "        }",
+          "    }",
+          "} catch(e) {}"
+        ]
+      }
     }
   ]
 }

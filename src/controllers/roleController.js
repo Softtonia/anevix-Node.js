@@ -4,7 +4,12 @@ const Role = require('../models/Role');
 const getRoles = async (req, res) => {
   try {
     const roles = await Role.find();
-    res.status(200).json({ success: true, count: roles.length, data: roles });
+    res.status(200).json({
+      success: true,
+      message: 'Roles fetched successfully',
+      count: roles.length,
+      data: roles,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
@@ -17,7 +22,11 @@ const getRole = async (req, res) => {
     if (!role) {
       return res.status(404).json({ success: false, message: 'Role not found' });
     }
-    res.status(200).json({ success: true, data: role });
+    res.status(200).json({
+      success: true,
+      message: 'Role retrieved successfully',
+      data: role,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }
@@ -38,7 +47,11 @@ const createRole = async (req, res) => {
       id, name, slug, description, guard, is_default
     });
 
-    res.status(201).json({ success: true, data: role });
+    res.status(201).json({
+      success: true,
+      message: 'Role created successfully',
+      data: role,
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Bad Request', error: error.message });
   }
@@ -55,7 +68,11 @@ const updateRole = async (req, res) => {
     if (!role) {
       return res.status(404).json({ success: false, message: 'Role not found' });
     }
-    res.status(200).json({ success: true, data: role });
+    res.status(200).json({
+      success: true,
+      message: 'Role updated successfully',
+      data: role,
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Bad Request', error: error.message });
   }
@@ -64,12 +81,26 @@ const updateRole = async (req, res) => {
 // Delete role
 const deleteRole = async (req, res) => {
   try {
-    const role = await Role.findOneAndDelete({ id: req.params.id });
-    
+    const role = await Role.findOne({ id: req.params.id });
+
     if (!role) {
       return res.status(404).json({ success: false, message: 'Role not found' });
     }
-    res.status(200).json({ success: true, data: {} });
+
+    if (role.is_default) {
+      return res.status(400).json({
+        success: false,
+        message: 'Default system roles cannot be deleted',
+      });
+    }
+
+    await Role.findOneAndDelete({ id: req.params.id });
+
+    res.status(200).json({
+      success: true,
+      message: 'Role deleted successfully',
+      data: {},
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error', error: error.message });
   }

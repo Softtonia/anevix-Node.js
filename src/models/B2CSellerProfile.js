@@ -8,6 +8,11 @@ const b2cSellerProfileSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    sellerId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     // Personal Information
     personalInfo: {
       fullName: { type: String, required: true },
@@ -70,5 +75,14 @@ const b2cSellerProfileSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+b2cSellerProfileSchema.pre('save', function(next) {
+  if (!this.sellerId) {
+    const timestamp = Date.now().toString().slice(-5);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    this.sellerId = `SEL-${timestamp}${random}`;
+  }
+  next();
+});
 
 module.exports = mongoose.model("B2CSellerProfile", b2cSellerProfileSchema);

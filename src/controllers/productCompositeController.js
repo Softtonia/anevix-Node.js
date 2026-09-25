@@ -5,8 +5,6 @@ const ProductVariant = require("../models/ProductVariant");
 const ProductImage = require("../models/ProductImage");
 const Inventory = require("../models/Inventory");
 const ProductCategory = require("../models/ProductCategory");
-const ProductSubCategory = require("../models/ProductSubCategory");
-const ProductNestedSubCategory = require("../models/ProductNestedSubCategory");
 
 // Helper to validate product attributes
 const validateProductAttributes = (attributes, productType) => {
@@ -131,13 +129,12 @@ const createCompositeProduct = async (req, res) => {
     }
 
     // 1. Validate Product Data
-    const {
-      name, slug, description, shortDescription, sellerId, cat_id, sub_cat_id, nested_sub_cat_id, sku,
+    let { name, slug, description, shortDescription, sellerId, cat_id, sku,
       price, salePrice, productType, attributes, status, isActive
     } = productData;
 
-    if (!name || !slug || !sellerId || !cat_id || !sub_cat_id || !nested_sub_cat_id || !sku || price === undefined) {
-      throw new Error("Name, slug, sellerId, cat_id, sub_cat_id, nested_sub_cat_id, sku, and price are required in productData");
+    if (!name || !slug || !sellerId || !cat_id || !sku || price === undefined) {
+      throw new Error("Name, slug, sellerId, cat_id, sku, and price are required in productData");
     }
 
     
@@ -146,11 +143,11 @@ const createCompositeProduct = async (req, res) => {
     }
     const cat = await ProductCategory.findById(cat_id).session(session);
     if (!cat) throw new Error("ProductCategory not found");
-    const subCat = await ProductSubCategory.findById(sub_cat_id).session(session);
-    if (!subCat) throw new Error("ProductSubCategory not found");
+    const subCat = await ProductCategory.findById(sub_cat_id).session(session);
+    if (!subCat) throw new Error("ProductCategory not found");
     if (subCat.cat_id.toString() !== cat_id.toString()) throw new Error("sub_cat_id does not belong to cat_id");
-    const nestedCat = await ProductNestedSubCategory.findById(nested_sub_cat_id).session(session);
-    if (!nestedCat) throw new Error("ProductNestedSubCategory not found");
+    const nestedCat = await ProductCategory.findById(nested_sub_cat_id).session(session);
+    if (!nestedCat) throw new Error("ProductCategory not found");
     if (nestedCat.sub_cat_id.toString() !== sub_cat_id.toString()) {
       return res.status(400).json({ message: "nested_sub_cat_id does not belong to the specified sub_cat_id" });
     }

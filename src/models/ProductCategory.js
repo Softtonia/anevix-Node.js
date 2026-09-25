@@ -14,6 +14,11 @@ const productCategorySchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    parentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProductCategory",
+      default: null,
+    },
     image: {
       type: String,
       default: null,

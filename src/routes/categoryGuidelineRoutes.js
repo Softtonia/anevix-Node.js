@@ -1,12 +1,12 @@
 const express = require("express");
 const adminAuth = require("../middleware/adminAuth");
 const {
-  createProductNestedSubCategory,
-  getProductNestedSubCategories,
-  getProductNestedSubCategoryById,
-  updateProductNestedSubCategory,
-  deleteProductNestedSubCategory,
-} = require("../controllers/productNestedSubCategoryController");
+  createCategoryGuideline,
+  getCategoryGuidelines,
+  getCategoryGuidelineById,
+  updateCategoryGuideline,
+  deleteCategoryGuideline,
+} = require("../controllers/categoryGuidelineController");
 
 const router = express.Router();
 
@@ -17,41 +17,38 @@ const passiveAdminAuth = async (req, res, next) => {
     try {
       const jwt = require("jsonwebtoken");
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
       const User = require("../models/User");
       const user = await User.findById(decoded.id);
-      
       if (user) {
         const RoleHasUser = require("../models/RoleHasUser");
         const Role = require("../models/Role");
         const roleMappings = await RoleHasUser.find({ user_id: user._id });
-        const roleIds = roleMappings.map(m => m.role_id);
+        const roleIds = roleMappings.map((m) => m.role_id);
         const roles = await Role.find({ id: { $in: roleIds } });
-        const hasAdminRole = roles.some((role) => role.slug === "admin");
-        
-        if (hasAdminRole) {
+        if (roles.some((role) => role.slug === "admin")) {
           req.admin = {
             id: user._id,
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
           };
+          req.user = req.admin;
         }
       }
     } catch (err) {
-      // Ignored for passive auth
+      // Ignore
     }
   }
   next();
 };
 
-// Public routes
-router.get("/", passiveAdminAuth, getProductNestedSubCategories);
-router.get("/:id", passiveAdminAuth, getProductNestedSubCategoryById);
+// Public/passive routes
+router.get("/", passiveAdminAuth, getCategoryGuidelines);
+router.get("/:id", passiveAdminAuth, getCategoryGuidelineById);
 
 // Admin routes
-router.post("/", adminAuth, createProductNestedSubCategory);
-router.put("/:id", adminAuth, updateProductNestedSubCategory);
-router.delete("/:id", adminAuth, deleteProductNestedSubCategory);
+router.post("/", adminAuth, createCategoryGuideline);
+router.put("/:id", adminAuth, updateCategoryGuideline);
+router.delete("/:id", adminAuth, deleteCategoryGuideline);
 
 module.exports = router;

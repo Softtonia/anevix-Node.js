@@ -16,45 +16,154 @@ const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const jwt = require("jsonwebtoken");
 const { createNotification } = require("../services/notificationService");
+const { triggerCampaignEvent } = require("../services/campaignService");
 
 const addUser = async (req, res) => {
   try {
-    const { email, password, firstName, lastName, phoneNumber, roles } = req.body;
+    const {
+      email,
+      password,
+      firstName,
+      first_name,
+      lastName,
+      last_name,
+      phoneNumber,
+      phone,
+      mobile,
+      role,
+      roles,
+      status,
+    } = req.body;
 
-    if (!roles || !Array.isArray(roles) || roles.length === 0) {
-      return res.status(400).json({ message: "At least one role is required" });
+    const resolvedFirstName = (firstName || first_name || "").trim();
+    const resolvedLastName = (lastName || last_name || "").trim();
+    const resolvedEmail = email ? email.toLowerCase().trim() : undefined;
+    const resolvedPhone = (phoneNumber || phone || mobile || "").trim() || undefined;
+
+    if (!resolvedFirstName || !resolvedLastName || !password || (!resolvedEmail && !resolvedPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: "First name, last name, password and email or phone number are required",
+      });
     }
 
-    const { newUser, verificationTypes, dummyMobileOtp } = await createUserAccount(
-      firstName, 
-      lastName, 
-      email, 
-      phoneNumber, 
-      password
-    );
-
-    if (roles && Array.isArray(roles) && roles.length > 0) {
-      const validatedRoles = await getValidatedRoles(roles);
-      await assignRolesToUser(newUser._id, validatedRoles);
+    // Collect roles input from role or roles
+    let rawRoles = [];
+    if (Array.isArray(roles) && roles.length > 0) {
+      rawRoles = roles;
+    } else if (role) {
+      rawRoles = Array.isArray(role) ? role : [role];
+    } else if (roles) {
+      rawRoles = [roles];
     }
 
-    // Fetch user to include the updated roles in the response
-    const createdUser = await User.findById(newUser._id);
+    if (rawRoles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one role is required",
+      });
+    }
+
+    // Resolve roles by ID or by Slug/Name
+    const matchedRoles = await Role.find({
+      $or: [
+        { id: { $in: rawRoles.filter((r) => typeof r === "number" || !isNaN(Number(r))).map(Number) } },
+        { slug: { $in: rawRoles.map((r) => String(r).trim().toLowerCase()) } },
+        { name: { $in: rawRoles.map((r) => String(r).trim()) } },
+      ],
+    });
+
+    if (matchedRoles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid role(s) specified: ${JSON.stringify(rawRoles)}`,
+      });
+    }
+
+    // Check existing user
+    const existingUser = await User.findOne({
+      $or: [
+        ...(resolvedEmail ? [{ email: resolvedEmail }] : []),
+        ...(resolvedPhone ? [{ phoneNumber: resolvedPhone }] : []),
+      ],
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists with this email or phone number",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      email: resolvedEmail,
+      phoneNumber: resolvedPhone,
+      password: hashedPassword,
+      status: status || "active",
+      isEmailVerified: !!resolvedEmail,
+      isMobileVerified: !!resolvedPhone,
+      isAccountVerified: true,
+    });
+
+    await assignRolesToUser(newUser._id, matchedRoles);
+
+    // Initialize seller onboarding if b2c-seller role is assigned
+    await initializeSellerRegistrationIfApplicable(newUser._id);
+
+    // Send credentials email automatically via ADDED_USER template
+    if (resolvedEmail) {
+      try {
+        const template = await EmailTemplate.findOne({ key: "ADDED_USER", isActive: true });
+        if (template) {
+          const fullName = `${newUser.firstName} ${newUser.lastName}`.trim();
+          let htmlBody = template.body;
+
+          htmlBody = htmlBody.replace(/\{\{UserName\}\}/gi, fullName);
+          htmlBody = htmlBody.replace(/\{\{user_name\}\}/gi, fullName);
+          htmlBody = htmlBody.replace(/\{\{email\}\}/gi, resolvedEmail);
+          htmlBody = htmlBody.replace(/\{\{password\}\}/gi, password);
+          htmlBody = htmlBody.replace(/\{\{CompanyName\}\}/gi, "Anevix Ecommerce");
+
+          await sendEmail(
+            resolvedEmail,
+            template.subject || "Your Anevix Account Has Been Created",
+            `Hello ${fullName}, your account has been created. Email: ${resolvedEmail}, Password: ${password}`,
+            htmlBody
+          );
+        }
+      } catch (emailErr) {
+        console.error("Failed to send ADDED_USER email:", emailErr.message);
+      }
+    }
+
+    triggerCampaignEvent("USER_ADDED", { user: newUser.toObject() });
 
     return res.status(201).json({
-      message: "User added successfully. Verification OTPs sent.",
-      verificationTypes,
-      dummyMobileOtp,
+      success: true,
+      message: "User added successfully",
       user: {
-        id: createdUser._id,
-        firstName: createdUser.firstName,
-        lastName: createdUser.lastName,
-        email: createdUser.email,
-        phoneNumber: createdUser.phoneNumber,
+        id: newUser._id,
+        first_name: newUser.firstName,
+        last_name: newUser.lastName,
+        full_name: `${newUser.firstName} ${newUser.lastName}`.trim(),
+        email: newUser.email,
+        phoneNumber: newUser.phoneNumber,
+        status: newUser.status,
+        roles: matchedRoles.map((r) => ({
+          id: r.id,
+          name: r.name,
+          slug: r.slug,
+          guard_name: r.guard || "web",
+        })),
       },
     });
   } catch (error) {
     return res.status(500).json({
+      success: false,
       message: "Something went wrong",
       error: error.message,
     });
@@ -207,6 +316,7 @@ const registerBusiness = async (req, res) => {
     const { newUser, verificationTypes, dummyMobileOtp } = await createUserAccount(firstName, lastName, email, phoneNumber, password);
     
     await assignRolesToUser(newUser._id, validatedRoles);
+    await initializeSellerRegistrationIfApplicable(newUser._id);
 
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
     await User.updateOne({ _id: newUser._id }, { lastLoginAt: new Date() });
@@ -329,12 +439,27 @@ const verifyEmailOTP = async (req, res) => {
           });
         }
 
+        const wasAccountVerified = userByEmail.isAccountVerified;
+
         userByEmail.isEmailVerified = true;
         userByEmail.isAccountVerified = true;
         userByEmail.status = "active";
         userByEmail.emailOtpHash = null;
         userByEmail.emailOtpExpiresAt = null;
         await userByEmail.save();
+
+        if (!wasAccountVerified) {
+          triggerCampaignEvent("USER_REGISTRATION", { user: userByEmail.toObject() });
+          
+          // Also check if they are a seller to trigger SELLER_REGISTERED
+          const RoleHasUser = require("../models/RoleHasUser");
+          const Role = require("../models/Role");
+          const sellerRoles = await Role.find({ slug: { $in: ["b2c-seller", "b2b-seller"] } }).distinct("id");
+          const hasSellerRole = await RoleHasUser.findOne({ user_id: userByEmail._id, role_id: { $in: sellerRoles } });
+          if (hasSellerRole) {
+            triggerCampaignEvent("SELLER_REGISTERED", { user: userByEmail.toObject() });
+          }
+        }
 
         await initializeSellerRegistrationIfApplicable(userByEmail._id);
 
@@ -388,6 +513,18 @@ const verifyEmailOTP = async (req, res) => {
     user.emailOtpExpiresAt = null;
 
     await user.save();
+
+    if (!wasAccountVerified) {
+      triggerCampaignEvent("USER_REGISTRATION", { user: user.toObject() });
+      
+      const RoleHasUser = require("../models/RoleHasUser");
+      const Role = require("../models/Role");
+      const sellerRoles = await Role.find({ slug: { $in: ["b2c-seller", "b2b-seller"] } }).distinct("id");
+      const hasSellerRole = await RoleHasUser.findOne({ user_id: user._id, role_id: { $in: sellerRoles } });
+      if (hasSellerRole) {
+        triggerCampaignEvent("SELLER_REGISTERED", { user: user.toObject() });
+      }
+    }
 
     await initializeSellerRegistrationIfApplicable(user._id);
 
@@ -990,6 +1127,8 @@ const editUser = async (req, res) => {
 
     await user.save();
 
+    triggerCampaignEvent("USER_UPDATED", { user: user.toObject() });
+
     return res.status(200).json({
       success: true,
       message: "User updated successfully",
@@ -1001,6 +1140,108 @@ const editUser = async (req, res) => {
         phoneNumber: user.phoneNumber,
         status: user.status,
       },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search ? req.query.search.trim() : "";
+    const status = req.query.status ? req.query.status.trim() : "";
+    const roleSlug = req.query.role ? req.query.role.trim() : "";
+
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phoneNumber: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    // Role filter
+    if (roleSlug) {
+      const targetRole = await Role.findOne({ slug: roleSlug });
+      if (targetRole) {
+        const mappings = await RoleHasUser.find({ role_id: targetRole.id });
+        const userIds = mappings.map((m) => m.user_id);
+        query._id = { $in: userIds };
+      } else {
+        query._id = { $in: [] }; // No users match if role doesn't exist
+      }
+    }
+
+    const total = await User.countDocuments(query);
+    const users = await User.find(query)
+      .select("-password -passwordResetTokenHash -emailOtpHash -mobileOtpHash")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // Fetch roles for these users
+    const userIds = users.map((u) => u._id);
+    const roleMappings = await RoleHasUser.find({ user_id: { $in: userIds } }).lean();
+    const roleIds = [...new Set(roleMappings.map((rm) => rm.role_id))];
+    const roles = await Role.find({ id: { $in: roleIds } }).lean();
+    const roleMap = new Map(roles.map((r) => [r.id, r]));
+
+    const formattedUsers = users.map((u) => {
+      const mappedRoleIds = roleMappings
+        .filter((rm) => rm.user_id.toString() === u._id.toString())
+        .map((rm) => rm.role_id);
+
+      const userRoles = mappedRoleIds
+        .map((rid) => roleMap.get(rid))
+        .filter(Boolean)
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          slug: r.slug,
+          guard_name: r.guard || "web",
+        }));
+
+      return {
+        id: u._id,
+        first_name: u.firstName || "",
+        last_name: u.lastName || "",
+        full_name: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+        email: u.email || "",
+        phoneNumber: u.phoneNumber || "",
+        status: u.status || "active",
+        isEmailVerified: u.isEmailVerified || false,
+        isMobileVerified: u.isMobileVerified || false,
+        isAccountVerified: u.isAccountVerified || false,
+        is_default: u.is_default || false,
+        roles: userRoles,
+        lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
+        created_at: u.createdAt ? u.createdAt.toISOString() : null,
+        updated_at: u.updatedAt ? u.updatedAt.toISOString() : null,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Users fetched successfully",
+      count: formattedUsers.length,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit) || 1,
+      data: formattedUsers,
     });
   } catch (error) {
     return res.status(500).json({
@@ -1059,6 +1300,8 @@ const forgotPassword = async (req, res) => {
       "Please view this email in an HTML-compatible client.",
       htmlBody
     );
+
+    triggerCampaignEvent("PASSWORD_RESET", { user: user.toObject(), reset_link: resetLink });
 
     return res.status(200).json({
       success: true,
@@ -1136,6 +1379,8 @@ const resetPassword = async (req, res) => {
     } catch (err) {
       console.error("Failed to create PASSWORD_CHANGED notification:", err);
     }
+
+    triggerCampaignEvent("PASSWORD_CHANGED", { user: user.toObject() });
 
     return res.status(200).json({
       success: true,
@@ -1277,6 +1522,8 @@ const addOrder = async (req, res) => {
     } catch (err) {
       console.error("Failed to create ORDER_PLACED notification:", err);
     }
+
+    triggerCampaignEvent("ORDER_PURCHASED", { user: { email: req.user.email, firstName: req.user.firstName }, order_id: newOrder._id });
 
     return res.status(201).json({
       success: true,
@@ -1646,6 +1893,7 @@ module.exports = {
   resendMobileOTP,
   deleteUser,
   editUser,
+  getAllUsers,
   forgotPassword,
   resetPassword,
   updateUnverifiedContact,

@@ -11,11 +11,13 @@ const {
   logoutUser,
   deleteUser,
   editUser,
+  getAllUsers,
   addOrder,
   addToWishlist,
   addSavedPaymentMethod,
 } = require("../controllers/userController");
 
+router.get("/", adminAuth, getAllUsers);
 router.post("/add", adminAuth, addUser);
 router.delete("/delete/:id", adminAuth, deleteUser);
 router.put("/edit/:id", adminAuth, editUser);

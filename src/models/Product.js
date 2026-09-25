@@ -35,6 +35,10 @@ const productSchema = new mongoose.Schema(
       ref: "B2CSellerProfile",
       required: true,
     },
+    batchId: {
+      type: String,
+      default: null, // Groups single/bulk uploads
+    },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
@@ -61,6 +65,34 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: ["draft", "pending", "active", "rejected", "archived"],
       default: "draft",
+    },
+    approval: {
+      status: {
+        type: String,
+        enum: ["draft", "pending", "approved", "rejected"],
+        default: "pending"
+      },
+      submitted_at: {
+        type: Date,
+        default: null
+      },
+      reviewed_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
+      },
+      reviewed_at: {
+        type: Date,
+        default: null
+      },
+      rejection_reason: {
+        type: String,
+        default: null
+      },
+      review_note: {
+        type: String,
+        default: null
+      }
     },
     isActive: {
       type: Boolean,
@@ -286,8 +318,7 @@ productSchema.pre("validate", function () {
   if (this.isNew || this.isModified('cat_id') || this.isModified('sub_cat_id') || this.isModified('nested_sub_cat_id')) {
     if (!this.categoryId) { // New product logic
       if (!this.cat_id) this.invalidate("cat_id", "cat_id is required");
-      if (!this.sub_cat_id) this.invalidate("sub_cat_id", "sub_cat_id is required");
-      if (!this.nested_sub_cat_id) this.invalidate("nested_sub_cat_id", "nested_sub_cat_id is required");
+      
     }
   }
 });
