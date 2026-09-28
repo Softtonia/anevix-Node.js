@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+﻿const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const path = require("path");
 
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
-const ProductCategory = require("../models/ProductCategory");
+const ProductCategory = require("../models/category/ProductCategory");
 // Note: We don't use ProductSubCategory or ProductNestedSubCategory because 
 // the API (e.g., /api/product-categories?parent=ID) uses the unified ProductCategory tree.
 

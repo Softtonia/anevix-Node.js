@@ -1,6 +1,6 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 const mongoose = require("mongoose");
-const EmailTemplate = require("../models/EmailTemplate");
+const EmailTemplate = require("../models/notification/EmailTemplate");
 const connectDB = require("../config/db");
 
 const seedEmailTemplates = async () => {

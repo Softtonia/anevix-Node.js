@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
-const ProductCategory = require("../models/ProductCategory");
-const Category = require("../models/Category");
+﻿const mongoose = require("mongoose");
+const ProductCategory = require("../models/category/ProductCategory");
+const Category = require("../models/category/Category");
 
 const SUPPORTED_CATEGORY_TYPES = [
   "ProductCategory",

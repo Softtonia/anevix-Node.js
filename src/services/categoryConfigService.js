@@ -1,8 +1,8 @@
-const CategoryResolver = require("./categoryResolver");
-const CategoryCustomField = require("../models/CategoryCustomField");
-const CategoryCustomFieldValue = require("../models/CategoryCustomFieldValue");
-const CategoryGuideline = require("../models/CategoryGuideline");
-const CategoryCatalogConfig = require("../models/CategoryCatalogConfig");
+﻿const CategoryResolver = require("./categoryResolver");
+const CategoryCustomField = require("../models/category/CategoryCustomField");
+const CategoryCustomFieldValue = require("../models/category/CategoryCustomFieldValue");
+const CategoryGuideline = require("../models/category/CategoryGuideline");
+const CategoryCatalogConfig = require("../models/category/CategoryCatalogConfig");
 
 /**
  * Utility to deep-merge plain objects.

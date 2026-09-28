@@ -1,7 +1,7 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
-const User = require("../models/User");
+const User = require("../models/auth/User");
 const connectDB = require("../config/db");
 
 const seedAdmin = async () => {
@@ -11,8 +11,8 @@ const seedAdmin = async () => {
     const email = "diya@yopmail.com";
     const password = "admin123";
 
-    const Role = require("../models/Role");
-    const RoleHasUser = require("../models/RoleHasUser");
+    const Role = require("../models/auth/Role");
+    const RoleHasUser = require("../models/auth/RoleHasUser");
 
     let adminUser = await User.findOne({ email });
 

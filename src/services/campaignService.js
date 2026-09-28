@@ -1,8 +1,8 @@
-const Campaign = require("../models/Campaign");
-const CampaignLog = require("../models/CampaignLog");
-const User = require("../models/User");
-const RoleHasUser = require("../models/RoleHasUser");
-const Role = require("../models/Role");
+﻿const Campaign = require("../models/campaign/Campaign");
+const CampaignLog = require("../models/campaign/CampaignLog");
+const User = require("../models/auth/User");
+const RoleHasUser = require("../models/auth/RoleHasUser");
+const Role = require("../models/auth/Role");
 const sendEmail = require("../utils/sendEmail");
 const { MERGE_TAGS, getSampleContext } = require("../config/campaignConfig");
 

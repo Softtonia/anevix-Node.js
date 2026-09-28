@@ -1,5 +1,5 @@
-require("dotenv").config();
-const Role = require("../models/Role");
+﻿require("dotenv").config();
+const Role = require("../models/auth/Role");
 const connectDB = require("../config/db");
 
 const seedRoles = async () => {

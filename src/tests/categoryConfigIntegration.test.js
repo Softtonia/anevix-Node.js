@@ -1,15 +1,15 @@
-const mongoose = require("mongoose");
+﻿const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const ProductCategory = require("../models/ProductCategory");
+const ProductCategory = require("../models/category/ProductCategory");
 const ProductSubCategory = require("../models/ProductSubCategory");
 const ProductNestedSubCategory = require("../models/ProductNestedSubCategory");
-const Category = require("../models/Category");
-const CategoryCustomField = require("../models/CategoryCustomField");
-const CategoryCustomFieldValue = require("../models/CategoryCustomFieldValue");
-const CategoryGuideline = require("../models/CategoryGuideline");
-const CategoryCatalogConfig = require("../models/CategoryCatalogConfig");
+const Category = require("../models/category/Category");
+const CategoryCustomField = require("../models/category/CategoryCustomField");
+const CategoryCustomFieldValue = require("../models/category/CategoryCustomFieldValue");
+const CategoryGuideline = require("../models/category/CategoryGuideline");
+const CategoryCatalogConfig = require("../models/category/CategoryCatalogConfig");
 const CategoryResolver = require("../services/categoryResolver");
 const CategoryConfigService = require("../services/categoryConfigService");
 

@@ -1,4 +1,4 @@
-const Role = require("../models/Role");
+﻿const Role = require("../models/auth/Role");
 
 const requireRole = (...allowedRoles) => {
   return async (req, res, next) => {
@@ -11,9 +11,9 @@ const requireRole = (...allowedRoles) => {
       }
 
       // Find user
-      const User = require("../models/User");
-      const RoleHasUser = require("../models/RoleHasUser");
-      const Role = require("../models/Role");
+      const User = require("../models/auth/User");
+      const RoleHasUser = require("../models/auth/RoleHasUser");
+      const Role = require("../models/auth/Role");
 
       const user = await User.findById(req.user.id);
       if (!user) {

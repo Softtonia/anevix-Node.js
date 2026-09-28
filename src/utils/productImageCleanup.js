@@ -1,6 +1,6 @@
-const fsPromises = require('fs').promises;
+﻿const fsPromises = require('fs').promises;
 const path = require('path');
-const ProductImage = require('../models/ProductImage');
+const ProductImage = require('../models/product/ProductImage');
 
 /**
  * Safely delete a file from disk without throwing errors if the file doesn't exist

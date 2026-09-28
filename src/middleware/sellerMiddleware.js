@@ -1,4 +1,4 @@
-const BankVerification = require("../models/BankVerification");
+﻿const BankVerification = require("../models/seller/BankVerification");
 
 /**
  * Middleware to enforce that a seller has a VERIFIED bank account

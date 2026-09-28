@@ -1,8 +1,8 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 const mongoose = require("mongoose");
-const User = require("../models/User");
-const Role = require("../models/Role");
-const RoleHasUser = require("../models/RoleHasUser");
+const User = require("../models/auth/User");
+const Role = require("../models/auth/Role");
+const RoleHasUser = require("../models/auth/RoleHasUser");
 const connectDB = require("../config/db");
 
 const seedRoleHasUser = async () => {

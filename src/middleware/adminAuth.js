@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");
+﻿const jwt = require("jsonwebtoken");
 
 const adminAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -14,7 +14,7 @@ const adminAuth = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const User = require("../models/User");
+    const User = require("../models/auth/User");
     const user = await User.findById(decoded.id);
 
     if (!user) {
@@ -23,8 +23,8 @@ const adminAuth = async (req, res, next) => {
       });
     }
 
-    const RoleHasUser = require("../models/RoleHasUser");
-    const Role = require("../models/Role");
+    const RoleHasUser = require("../models/auth/RoleHasUser");
+    const Role = require("../models/auth/Role");
 
     const roleMappings = await RoleHasUser.find({ user_id: user._id });
     const roleIds = roleMappings.map(m => m.role_id);
