@@ -10,7 +10,6 @@ const COMMON_TABS = [
   { id: "pricing", label: "Pricing" },
   { id: "inventory", label: "Inventory" },
   { id: "shipping", label: "Shipping" },
-  { id: "attributes", label: "Attributes" },
   { id: "linked_products", label: "Linked Products" },
   { id: "media", label: "Images & Media" },
   { id: "seo", label: "SEO & Visibility" },
@@ -246,7 +245,6 @@ const PRODUCT_TYPE_SCHEMAS = {
       { id: "pricing", label: "Pricing" },
       { id: "inventory", label: "Inventory" },
       { id: "shipping", label: "Shipping" },
-      { id: "attributes", label: "Attributes" },
       { id: "linked_products", label: "Linked Products" },
       { id: "media", label: "Images & Media" },
       { id: "seo", label: "SEO & Visibility" },
@@ -276,9 +274,8 @@ const PRODUCT_TYPE_SCHEMAS = {
 
       // Pricing
       {
-        key: "regular_price",
-        altKey: "price",
-        label: "Regular Price",
+        key: "anevixPrice",
+        label: "Anevix Price",
         type: "number",
         required: true,
         tab: "pricing",
@@ -287,8 +284,17 @@ const PRODUCT_TYPE_SCHEMAS = {
         defaultValue: null,
       },
       {
-        key: "sale_price",
-        altKey: "salePrice",
+        key: "mrpPrice",
+        label: "MRP Price",
+        type: "number",
+        required: true,
+        tab: "pricing",
+        placeholder: "0.00",
+        min: 0,
+        defaultValue: null,
+      },
+      {
+        key: "salePrice",
         label: "Sale Price",
         type: "number",
         required: false,
@@ -296,52 +302,40 @@ const PRODUCT_TYPE_SCHEMAS = {
         placeholder: "0.00",
         min: 0,
         defaultValue: null,
-        description: "Must be strictly less than regular price",
       },
       {
-        key: "date_on_sale_from",
-        label: "Sale Start Date",
-        type: "date",
+        key: "prePaidDiscount",
+        label: "Pre-paid Discount",
+        type: "number",
         required: false,
         tab: "pricing",
-        defaultValue: null,
+        placeholder: "0",
+        min: 0,
+        defaultValue: 0,
       },
       {
-        key: "date_on_sale_to",
-        label: "Sale End Date",
-        type: "date",
-        required: false,
-        tab: "pricing",
-        defaultValue: null,
-      },
-      {
-        key: "currency",
-        label: "Currency",
+        key: "hsnCode",
+        label: "HSN Code",
         type: "text",
         required: false,
         tab: "pricing",
-        defaultValue: "INR",
+        placeholder: "e.g. 1001",
+        defaultValue: null,
       },
       {
-        key: "tax_status",
-        label: "Tax Status",
+        key: "gstRate",
+        label: "GST Rate (%)",
         type: "select",
         required: false,
         tab: "pricing",
-        defaultValue: "taxable",
-        options: [
-          { label: "Taxable", value: "taxable" },
-          { label: "Shipping only", value: "shipping" },
-          { label: "None", value: "none" },
-        ],
-      },
-      {
-        key: "tax_class",
-        label: "Tax Class",
-        type: "text",
-        required: false,
-        tab: "pricing",
         defaultValue: null,
+        options: [
+          { label: "0%", value: 0 },
+          { label: "5%", value: 5 },
+          { label: "12%", value: 12 },
+          { label: "18%", value: 18 },
+          { label: "28%", value: 28 },
+        ]
       },
 
       // Inventory
@@ -366,8 +360,7 @@ const PRODUCT_TYPE_SCHEMAS = {
         description: "Enable stock management at product level",
       },
       {
-        key: "stock_quantity",
-        altKey: "quantity",
+        key: "stockQuantity",
         label: "Stock Quantity",
         type: "number",
         required: false,
@@ -390,37 +383,31 @@ const PRODUCT_TYPE_SCHEMAS = {
         ],
         dependsOn: { field: "manage_stock", value: true },
       },
-      {
-        key: "low_stock_threshold",
-        altKey: "lowStockThreshold",
-        label: "Low Stock Threshold",
-        type: "number",
-        required: false,
-        tab: "inventory",
-        placeholder: "2",
-        defaultValue: 2,
-        dependsOn: { field: "manage_stock", value: true },
-      },
-      {
-        key: "sold_individually",
-        label: "Sold Individually",
-        type: "boolean",
-        required: false,
-        tab: "inventory",
-        defaultValue: false,
-        description: "Limit purchases to 1 item per order",
-      },
+
 
       // Shipping
       {
         key: "weight",
-        label: "Weight (kg)",
+        label: "Weight",
         type: "number",
         required: false,
         tab: "shipping",
         placeholder: "0.0",
         min: 0,
         defaultValue: null,
+      },
+      {
+        key: "weightUnit",
+        label: "Weight Unit",
+        type: "select",
+        required: false,
+        tab: "shipping",
+        defaultValue: "kg",
+        options: [
+          { label: "Kilograms (kg)", value: "kg" },
+          { label: "Grams (g)", value: "g" },
+          { label: "Liters (l)", value: "l" },
+        ]
       },
       {
         key: "dimensions",
@@ -435,30 +422,9 @@ const PRODUCT_TYPE_SCHEMAS = {
         ],
         defaultValue: { length: null, width: null, height: null },
       },
-      {
-        key: "shipping_class",
-        label: "Shipping Class",
-        type: "text",
-        required: false,
-        tab: "shipping",
-        defaultValue: null,
-      },
 
       // Attributes
-      {
-        key: "attributes",
-        label: "Product Attributes",
-        type: "array",
-        itemType: "object",
-        required: false,
-        tab: "attributes",
-        fields: [
-          { key: "name", label: "Attribute Name", type: "text", placeholder: "e.g. Material" },
-          { key: "options", label: "Values", type: "array", itemType: "text", placeholder: "e.g. Cotton, Polyester" },
-        ],
-        description: "Descriptive specifications displayed on product page",
-        defaultValue: [],
-      },
+
     ],
   },
 
@@ -632,7 +598,7 @@ const PRODUCT_TYPE_SCHEMAS = {
       // Inventory
       {
         key: "sku",
-        label: "Parent SKU",
+        label: "SKU",
         type: "text",
         required: true,
         tab: "inventory",
@@ -643,13 +609,46 @@ const PRODUCT_TYPE_SCHEMAS = {
       {
         key: "manage_stock",
         altKey: "manageStock",
-        label: "Manage Stock at Parent Level?",
+        label: "Track stock quantity for this product",
         type: "boolean",
         required: false,
         tab: "inventory",
         defaultValue: false,
-        description: "Toggle if stock is managed at the parent level instead of individual variations",
+        description: "Settings below apply to all variations without manual stock management enabled."
       },
+      {
+        key: "stock_quantity",
+        label: "Quantity",
+        type: "number",
+        required: false,
+        tab: "inventory",
+        defaultValue: 0,
+        condition: { field: "manage_stock", value: true }
+      },
+      {
+        key: "backorders",
+        label: "Allow backorders?",
+        type: "select",
+        required: false,
+        tab: "inventory",
+        defaultValue: "no",
+        options: [
+          { label: "Do not allow", value: "no" },
+          { label: "Allow, but notify customer", value: "notify" },
+          { label: "Allow", value: "yes" }
+        ],
+        condition: { field: "manage_stock", value: true }
+      },
+      {
+        key: "low_stock_threshold",
+        label: "Low stock threshold",
+        type: "number",
+        required: false,
+        tab: "inventory",
+        defaultValue: 2,
+        condition: { field: "manage_stock", value: true }
+      },
+
 
       // Attributes Required for Variations
       {
@@ -678,29 +677,126 @@ const PRODUCT_TYPE_SCHEMAS = {
         description: "List of variant objects with individual pricing, SKU, attributes, stock, and images",
         variantFields: [
           {
-            key: "sku",
-            label: "Variation SKU",
-            type: "text",
-            required: true,
-            placeholder: "e.g. VAR-SHIRT-RED-S",
+            key: "isActive",
+            label: "Enabled",
+            type: "boolean",
+            required: false,
+            defaultValue: true,
+          },
+          {
+            key: "downloadable",
+            label: "Downloadable",
+            type: "boolean",
+            required: false,
+            defaultValue: false,
+          },
+          {
+            key: "virtual",
+            label: "Virtual",
+            type: "boolean",
+            required: false,
+            defaultValue: false,
+          },
+          {
+            key: "manage_stock",
+            label: "Manage stock?",
+            type: "boolean",
+            required: false,
+            defaultValue: false,
           },
           {
             key: "regular_price",
             altKey: "price",
-            label: "Regular Price",
+            label: "Regular price (₹)",
             type: "number",
             required: true,
-            placeholder: "0.00",
+            placeholder: "Variation price (required)",
             min: 0,
           },
           {
             key: "sale_price",
             altKey: "salePrice",
-            label: "Sale Price",
+            label: "Sale price (₹)",
             type: "number",
             required: false,
-            placeholder: "0.00",
             min: 0,
+          },
+          {
+            key: "stock_status",
+            label: "Stock status",
+            type: "select",
+            required: false,
+            defaultValue: "instock",
+            options: [
+              { label: "In stock", value: "instock" },
+              { label: "Out of stock", value: "outofstock" },
+              { label: "On backorder", value: "onbackorder" }
+            ],
+            condition: { field: "manage_stock", value: false }
+          },
+          {
+            key: "stock_quantity",
+            label: "Stock quantity",
+            type: "number",
+            required: false,
+            defaultValue: 0,
+            condition: { field: "manage_stock", value: true }
+          },
+          {
+            key: "backorders",
+            label: "Allow backorders?",
+            type: "select",
+            required: false,
+            defaultValue: "no",
+            options: [
+              { label: "Do not allow", value: "no" },
+              { label: "Allow, but notify customer", value: "notify" },
+              { label: "Allow", value: "yes" }
+            ],
+            condition: { field: "manage_stock", value: true }
+          },
+          {
+            key: "weight",
+            label: "Weight (kg)",
+            type: "number",
+            required: false,
+            min: 0,
+          },
+          {
+            key: "dimensions",
+            label: "Dimensions (L×W×H) (cm)",
+            type: "object",
+            required: false,
+            fields: [
+              { key: "length", label: "Length", type: "number", placeholder: "Length" },
+              { key: "width", label: "Width", type: "number", placeholder: "Width" },
+              { key: "height", label: "Height", type: "number", placeholder: "Height" },
+            ],
+            defaultValue: { length: null, width: null, height: null },
+          },
+          {
+            key: "shipping_class",
+            label: "Shipping class",
+            type: "select",
+            required: false,
+            defaultValue: "Same as parent",
+            options: [
+              { label: "Same as parent", value: "Same as parent" }
+            ]
+          },
+          {
+            key: "description",
+            label: "Description",
+            type: "textarea",
+            required: false,
+            defaultValue: "",
+          },
+          {
+            key: "sku",
+            label: "Variation SKU",
+            type: "text",
+            required: true,
+            placeholder: "e.g. VAR-SHIRT-RED-S",
           },
           {
             key: "attributes",
@@ -715,33 +811,6 @@ const PRODUCT_TYPE_SCHEMAS = {
             description: "Attribute combination matching parent attributes (e.g. Color: Red, Size: S)",
           },
           {
-            key: "manage_stock",
-            label: "Manage Stock?",
-            type: "boolean",
-            required: false,
-            defaultValue: true,
-          },
-          {
-            key: "stock_quantity",
-            label: "Stock Quantity",
-            type: "number",
-            required: false,
-            placeholder: "0",
-            defaultValue: 0,
-          },
-          {
-            key: "backorders",
-            label: "Allow Backorders?",
-            type: "select",
-            required: false,
-            defaultValue: "no",
-            options: [
-              { label: "Do not allow", value: "no" },
-              { label: "Allow, but notify customer", value: "notify" },
-              { label: "Allow", value: "yes" },
-            ],
-          },
-          {
             key: "images",
             label: "Variation Images",
             type: "array",
@@ -749,17 +818,6 @@ const PRODUCT_TYPE_SCHEMAS = {
             required: false,
             description: "List of variant images [{ url, isPrimary }]",
             defaultValue: [],
-          },
-          {
-            key: "status",
-            label: "Status",
-            type: "select",
-            required: false,
-            defaultValue: "active",
-            options: [
-              { label: "Active / Published", value: "active" },
-              { label: "Archived / Inactive", value: "archived" },
-            ],
           },
         ],
         defaultValue: [],

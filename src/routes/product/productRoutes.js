@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const adminAuth = require("../../middleware/adminAuth");
 const {
   createProduct,
@@ -25,6 +25,40 @@ const {
 } = require("../../controllers/product/productCompositeController");
 
 const { upload } = require("../upload/uploadRoutes");
+const multer = require("multer");
+const path = require("path");
+
+const excelUpload = multer({
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      const fs = require("fs");
+      const uploadDir = path.join(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype.includes("excel") ||
+      file.mimetype.includes("spreadsheetml") ||
+      file.mimetype === "text/csv" ||
+      file.originalname.match(/\.(xlsx|xls|csv)$/i)
+    ) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error("Invalid file type! Please upload only Excel or CSV files."),
+        false
+      );
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -45,7 +79,9 @@ const passiveAdminAuth = async (req, res, next) => {
         const roleMappings = await RoleHasUser.find({ user_id: user._id });
         const roleIds = roleMappings.map(m => m.role_id);
         const roles = await Role.find({ id: { $in: roleIds } });
-        const hasAdminRole = roles.some((role) => role.slug === "admin");
+        const roleSlugs = roles.map((role) => role.slug);
+        const hasAdminRole = roleSlugs.includes("admin");
+        const isSeller = roleSlugs.includes("b2c-seller") || roleSlugs.includes("b2b-seller");
         
         if (hasAdminRole) {
           req.admin = {
@@ -53,6 +89,16 @@ const passiveAdminAuth = async (req, res, next) => {
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
+            roles: roleSlugs,
+          };
+        }
+        if (isSeller) {
+          req.seller = {
+            id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            roles: roleSlugs,
           };
         }
       }
@@ -131,7 +177,7 @@ router.get("/:id", passiveAdminAuth, getProductById);
 
 // Seller & Admin product routes
 router.post("/composite", sellerOrAdminAuth, upload.any(), createCompositeProduct);
-router.post("/bulk-upload", sellerOrAdminAuth, upload.single("file"), bulkUploadProducts);
+router.post("/bulk-upload", sellerOrAdminAuth, excelUpload.single("file"), bulkUploadProducts);
 router.post("/", sellerOrAdminAuth, createProduct);
 router.post("/:productId/variants", sellerOrAdminAuth, createVariant);
 router.get("/:productId/variants", passiveAdminAuth, getVariants);

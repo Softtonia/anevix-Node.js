@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 const Product = require("../../models/product/Product");
 const SimpleProduct = require("../../models/product/SimpleProduct");
 const ProductVariant = require("../../models/product/ProductVariant");
@@ -133,8 +133,14 @@ const createCompositeProduct = async (req, res) => {
       price, salePrice, productType, attributes, status, isActive
     } = productData;
 
-    if (!name || !slug || !sellerId || !cat_id || !sku || price === undefined) {
-      throw new Error("Name, slug, sellerId, cat_id, sku, and price are required in productData");
+    if (productType === 'variable') {
+      if (!name || !slug || !sellerId || !cat_id || !sku) {
+        throw new Error("Name, slug, sellerId, cat_id, and sku are required in productData");
+      }
+    } else {
+      if (!name || !slug || !sellerId || !cat_id || !sku || price === undefined) {
+        throw new Error("Name, slug, sellerId, cat_id, sku, and price are required in productData");
+      }
     }
 
     
@@ -261,17 +267,23 @@ const createCompositeProduct = async (req, res) => {
       for (let i = 0; i < pVariants.length; i++) {
         const vData = pVariants[i];
         
+        const getValidPrice = (...prices) => {
+          for (const p of prices) {
+            if (p !== undefined && p !== null && p !== "") return p;
+          }
+          return undefined;
+        };
+        const finalPrice = getValidPrice(vData.regular_price, vData.price, vData.anevix_price, vData.mrp_price);
+
         // Variant Validation
-        if (!vData.sku || !vData.attributes || (vData.regular_price === undefined && vData.price === undefined)) {
-          throw new Error(`Variant at index ${i} is missing sku, attributes, or regular_price`);
+        if (!vData.sku || !vData.attributes || finalPrice === undefined) {
+          throw new Error(`Variant at index ${i} is missing sku, attributes, or price. finalPrice=${finalPrice}, vData keys: ${Object.keys(vData).join(', ')}`);
         }
 
         const vAttrError = validateVariantAttributes(vData.attributes, product);
         if (vAttrError) throw new Error(`Variant ${vData.sku}: ` + vAttrError);
 
         const normalizedAttributes = vData.attributes.map(a => ({ name: a.name, value: a.value || a.option }));
-        
-        const finalPrice = vData.regular_price !== undefined ? vData.regular_price : vData.price;
         const finalSalePrice = vData.sale_price !== undefined ? vData.sale_price : vData.salePrice;
         const finalStatus = vData.status ? mapApiToStatus(vData.status) : "active";
 

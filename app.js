@@ -24,6 +24,7 @@ const categoryGuidelineRoutes = require("./src/routes/category/categoryGuideline
 const categoryCatalogConfigRoutes = require("./src/routes/category/categoryCatalogConfigRoutes.js");
 const categoryConfigurationRoutes = require("./src/routes/category/categoryConfigurationRoutes.js");
 const campaignRoutes = require("./src/routes/campaign/campaignRoutes.js");
+const hsnRoutes = require("./src/routes/tax/hsnRoutes.js");
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -58,6 +59,7 @@ app.use("/api/category-custom-field-values", categoryCustomFieldValueRoutes);
 app.use("/api/category-guidelines", categoryGuidelineRoutes);
 app.use("/api/category-catalog-configs", categoryCatalogConfigRoutes);
 app.use("/api/category-configs", categoryConfigurationRoutes);
+app.use("/api/hsn-codes", hsnRoutes);
 
 app.get("/", (req, res) => {
   res.json({

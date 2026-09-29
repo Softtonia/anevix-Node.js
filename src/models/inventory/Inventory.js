@@ -12,7 +12,7 @@ const inventorySchema = new mongoose.Schema(
       ref: "ProductVariant",
       default: null,
     },
-    quantity: {
+    stockQuantity: {
       type: Number,
       required: true,
       default: 0,
@@ -36,15 +36,7 @@ const inventorySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    lowStockThreshold: {
-      type: Number,
-      default: 5,
-      min: [0, "Low stock threshold cannot be negative"],
-      validate: {
-        validator: Number.isInteger,
-        message: "{VALUE} is not an integer value",
-      },
-    },
+
     backorders: {
       type: String,
       enum: ["no", "notify", "yes"],
@@ -69,7 +61,7 @@ inventorySchema.pre("validate", function () {
     this.invalidate("variantId", "Must provide exactly ONE of productId or variantId");
   }
 
-  if (this.reservedQuantity > this.quantity) {
+  if (this.reservedQuantity > this.stockQuantity) {
     this.invalidate("reservedQuantity", "Reserved quantity cannot exceed total quantity");
   }
 });

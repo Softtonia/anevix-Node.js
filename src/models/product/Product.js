@@ -147,23 +147,33 @@ const productSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
-    price: {
+    anevixPrice: {
       type: Number,
-      // required: true,
-      min: [0, "Price cannot be negative"],
+      min: [0, "Anevix price cannot be negative"],
+    },
+    mrpPrice: {
+      type: Number,
+      min: [0, "MRP price cannot be negative"],
     },
     salePrice: {
       type: Number,
       default: null,
       min: [0, "Sale price cannot be negative"],
     },
-    currency: {
+    prePaidDiscount: {
+      type: Number,
+      default: 0,
+      min: [0, "Pre-paid discount cannot be negative"],
+    },
+    hsnCode: {
       type: String,
-      default: "INR",
+      default: null,
       trim: true,
-      minlength: [3, "Currency code must be exactly 3 characters"],
-      maxlength: [3, "Currency code must be exactly 3 characters"],
-      match: [/^[A-Z]{3}$/, "Currency code must be a 3-letter uppercase string"],
+    },
+    gstRate: {
+      type: Number,
+      enum: [0, 5, 12, 18, 28],
+      default: null,
     },
     thumbnail: {
       type: String,
@@ -177,22 +187,7 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    attributes: [
-      {
-        name: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        options: [
-          {
-            type: String,
-            required: true,
-            trim: true,
-          },
-        ],
-      },
-    ],
+
     externalUrl: {
       type: String,
       default: null,
@@ -203,14 +198,7 @@ const productSchema = new mongoose.Schema(
       default: "Buy Now",
       trim: true,
     },
-    date_on_sale_from: {
-      type: Date,
-      default: null,
-    },
-    date_on_sale_to: {
-      type: Date,
-      default: null,
-    },
+
     total_sales: {
       type: Number,
       default: 0,
@@ -245,37 +233,28 @@ const productSchema = new mongoose.Schema(
         message: "{VALUE} is not an integer value",
       },
     },
-    tax_status: {
-      type: String,
-      enum: ["taxable", "shipping", "none"],
-      default: "taxable",
-    },
+
     tax_class: {
       type: String,
       default: null,
     },
-    sold_individually: {
-      type: Boolean,
-      default: false,
-    },
+
     weight: {
       type: Number,
       default: null,
       min: [0, "Weight cannot be negative"],
+    },
+    weightUnit: {
+      type: String,
+      enum: ["kg", "g", "l"],
+      default: "kg",
     },
     dimensions: {
       length: { type: Number, default: null, min: [0, "Length cannot be negative"] },
       width: { type: Number, default: null, min: [0, "Width cannot be negative"] },
       height: { type: Number, default: null, min: [0, "Height cannot be negative"] },
     },
-    shipping_class: {
-      type: String,
-      default: null,
-    },
-    shipping_class_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      default: null,
-    },
+
     reviews_allowed: {
       type: Boolean,
       default: true,
@@ -309,12 +288,7 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.pre("validate", function () {
-  if (this.date_on_sale_from && this.date_on_sale_to) {
-    if (this.date_on_sale_from > this.date_on_sale_to) {
-      this.invalidate("date_on_sale_from", "date_on_sale_from must not be after date_on_sale_to");
-    }
-  }
-  
+
   if (this.isNew || this.isModified('cat_id') || this.isModified('sub_cat_id') || this.isModified('nested_sub_cat_id')) {
     if (!this.categoryId) { // New product logic
       if (!this.cat_id) this.invalidate("cat_id", "cat_id is required");

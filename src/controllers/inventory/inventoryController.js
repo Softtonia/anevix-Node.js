@@ -1,4 +1,4 @@
-﻿const Inventory = require("../../models/inventory/Inventory");
+const Inventory = require("../../models/inventory/Inventory");
 const Product = require("../../models/product/Product");
 const ProductVariant = require("../../models/product/ProductVariant");
 const mongoose = require("mongoose");
@@ -307,6 +307,112 @@ const deleteInventory = async (req, res) => {
   }
 };
 
+// @desc    Get all inventory for a seller
+// @route   GET /api/inventory/seller
+// @access  Private/Admin/Seller
+const getSellerInventory = async (req, res) => {
+  try {
+    const isAdmin = req.admin || req.user?.role === "admin";
+    let targetSellerId = req.query.sellerId;
+
+    if (!isAdmin) {
+      if (req.seller && req.seller.id) {
+        if (!targetSellerId) {
+          targetSellerId = req.seller.id;
+        }
+      } else {
+        return res.status(403).json({ message: "Unauthorized. Seller access required." });
+      }
+    }
+
+    if (!targetSellerId) {
+       return res.status(400).json({ message: "sellerId is required" });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Product.countDocuments({ sellerId: targetSellerId });
+
+    const products = await Product.find({ sellerId: targetSellerId })
+      .select('name sku productType status isActive thumbnail cat_id categoryId')
+      .populate("cat_id", "cat_name name")
+      .populate("categoryId", "name")
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    const productIds = products.map(p => p._id);
+    
+    const ProductVariant = require("../../models/product/ProductVariant");
+    const variants = await ProductVariant.find({ productId: { $in: productIds } })
+      .select('productId sku attributes price status isActive thumbnail')
+      .lean();
+    const variantIds = variants.map(v => v._id);
+
+    const inventories = await Inventory.find({
+      $or: [
+        { productId: { $in: productIds } },
+        { variantId: { $in: variantIds } }
+      ]
+    }).lean();
+
+    const ProductImage = require("../../models/product/ProductImage");
+    const images = await ProductImage.find({
+      $or: [
+        { productId: { $in: productIds }, variantId: null, isPrimary: true },
+        { variantId: { $in: variantIds }, isPrimary: true }
+      ],
+      status: "active"
+    }).lean();
+
+    const formattedProducts = products.map(p => {
+      const pInv = inventories.find(i => i.productId && i.productId.toString() === p._id.toString());
+      const pVars = variants.filter(v => v.productId.toString() === p._id.toString());
+      const pPrimaryImg = images.find(img => img.productId && img.productId.toString() === p._id.toString() && !img.variantId);
+      
+      let category_name = null;
+      if (p.cat_id) {
+        category_name = p.cat_id.cat_name || p.cat_id.name || null;
+      } else if (p.categoryId) {
+        category_name = p.categoryId.name || null;
+      }
+
+      const formattedVariants = pVars.map(v => {
+        const vInv = inventories.find(i => i.variantId && i.variantId.toString() === v._id.toString());
+        const vPrimaryImg = images.find(img => img.variantId && img.variantId.toString() === v._id.toString());
+        return {
+          ...v,
+          thumbnail: v.thumbnail || vPrimaryImg?.url || p.thumbnail || pPrimaryImg?.url || null,
+          inventory: vInv ? getInventoryStatus(vInv) : null,
+          stock: vInv ? vInv.quantity : 0
+        };
+      });
+
+      return {
+        ...p,
+        category_name,
+        thumbnail: p.thumbnail || pPrimaryImg?.url || null,
+        inventory: pInv ? getInventoryStatus(pInv) : null,
+        stock: pInv ? pInv.quantity : 0,
+        variants: formattedVariants
+      };
+    });
+
+    res.json({
+      data: formattedProducts,
+      pagination: {
+        totalItems: total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
 module.exports = {
   createProductInventory,
   createVariantInventory,
@@ -315,5 +421,6 @@ module.exports = {
   updateInventory,
   adjustInventory,
   deleteInventory,
-  getInventoryStatus
+  getInventoryStatus,
+  getSellerInventory
 };
