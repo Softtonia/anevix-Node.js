@@ -990,11 +990,18 @@ const createProduct = async (req, res) => {
           // Format variant response immediately for returning
           const vObj = createdVariant.toObject();
           if (vInventoryDetails) {
-            vObj.inventory = vInventoryDetails;
-            vObj.stockQuantity = vInventoryDetails.stockQuantity;
-            vObj.manage_stock = vInventoryDetails.manageStock;
-            vObj.backorders = vInventoryDetails.backorders;
-          }
+              vObj.inventory = vInventoryDetails;
+              vObj.stockQuantity = vInventoryDetails.stockQuantity || vInventoryDetails.quantity || 0;
+              vObj.stock_quantity = vInventoryDetails.stockQuantity || vInventoryDetails.quantity || 0;
+              vObj.manage_stock = vInventoryDetails.manageStock;
+              vObj.backorders = vInventoryDetails.backorders;
+            } else {
+              vObj.inventory = { stockQuantity: 0, manageStock: false, isLowStock: false, reservedQuantity: 0 };
+              vObj.stockQuantity = 0;
+              vObj.stock_quantity = 0;
+              vObj.manage_stock = false;
+              vObj.backorders = 'no';
+            }
           if (createdVariantImages.length > 0) {
             vObj.images = createdVariantImages.map(img => ({ url: img.url, isPrimary: img.isPrimary, _id: img._id }));
           }
@@ -1164,11 +1171,16 @@ const getProducts = async (req, res) => {
         for (const v of variants) {
           const vInventory = variantInventories.find(inv => inv.variantId && inv.variantId.toString() === v._id.toString());
           if (vInventory) {
-            v.inventory = vInventory;
-            v.stock_quantity = vInventory.quantity;
-            v.manage_stock = vInventory.manageStock;
-            v.backorders = vInventory.backorders;
-          }
+              v.inventory = vInventory;
+              v.stock_quantity = vInventory.stockQuantity || vInventory.quantity || 0;
+              v.manage_stock = vInventory.manageStock;
+              v.backorders = vInventory.backorders;
+            } else {
+              v.inventory = { stockQuantity: 0, manageStock: false, isLowStock: false, reservedQuantity: 0 };
+              v.stock_quantity = 0;
+              v.manage_stock = false;
+              v.backorders = 'no';
+            }
         }
         
         formatted.variants = variants;
@@ -2330,11 +2342,16 @@ const getAdminProducts = async (req, res) => {
         for (const v of variants) {
           const vInventory = variantInventories.find(inv => inv.variantId && inv.variantId.toString() === v._id.toString());
           if (vInventory) {
-            v.inventory = vInventory;
-            v.stock_quantity = vInventory.quantity;
-            v.manage_stock = vInventory.manageStock;
-            v.backorders = vInventory.backorders;
-          }
+              v.inventory = vInventory;
+              v.stock_quantity = vInventory.stockQuantity || vInventory.quantity || 0;
+              v.manage_stock = vInventory.manageStock;
+              v.backorders = vInventory.backorders;
+            } else {
+              v.inventory = { stockQuantity: 0, manageStock: false, isLowStock: false, reservedQuantity: 0 };
+              v.stock_quantity = 0;
+              v.manage_stock = false;
+              v.backorders = 'no';
+            }
         }
         
         formatted.variants = variants;
