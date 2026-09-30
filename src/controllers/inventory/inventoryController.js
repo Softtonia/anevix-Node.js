@@ -384,7 +384,7 @@ const getSellerInventory = async (req, res) => {
         return {
           ...v,
           thumbnail: v.thumbnail || vPrimaryImg?.url || p.thumbnail || pPrimaryImg?.url || null,
-          inventory: vInv ? getInventoryStatus(vInv) : null,
+          inventory: vInv ? getInventoryStatus(vInv) : { stockQuantity: 0, reservedQuantity: 0, manageStock: false, isLowStock: false },
           stock: vInv ? vInv.quantity : 0
         };
       });
