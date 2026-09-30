@@ -1,4 +1,4 @@
-﻿const ProductCategory = require("../../models/category/ProductCategory");
+const ProductCategory = require("../../models/category/ProductCategory");
 const CategoryGuideline = require("../../models/category/CategoryGuideline");
 const mongoose = require("mongoose");
 const formatCategoryResponse = (category) => {
@@ -377,7 +377,8 @@ const updateProductCategory = async (req, res) => {
     }
     
     if (req.file) {
-      finalImage = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      const baseUrl = process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+      finalImage = `${baseUrl}/uploads/${req.file.filename}`;
     }
 
     const categoryName = name || cat_name || sub_cat_name;
@@ -639,7 +640,8 @@ const createCategoryHierarchyWithGuidelines = async (req, res) => {
     }
     
     if (req.file) {
-      finalImage = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      const baseUrl = process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+      finalImage = `${baseUrl}/uploads/${req.file.filename}`;
     }
 
     let createdCategory = null;

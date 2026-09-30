@@ -112,7 +112,8 @@ const createCompositeProduct = async (req, res) => {
     if (req.files && Array.isArray(req.files)) {
       const protocol = req.protocol;
       const host = req.get('host');
-      const baseUrl = `${protocol}://${host}/uploads/`;
+      const apiBase = process.env.API_BASE_URL || `${protocol}://${host}`;
+      const baseUrl = `${apiBase}/uploads/`;
 
       req.files.forEach(file => {
         const fileUrl = baseUrl + file.filename;

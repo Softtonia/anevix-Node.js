@@ -1,4 +1,4 @@
-﻿const ProductImage = require("../../models/product/ProductImage");
+const ProductImage = require("../../models/product/ProductImage");
 const Product = require("../../models/product/Product");
 const ProductVariant = require("../../models/product/ProductVariant");
 const mongoose = require("mongoose");
@@ -19,7 +19,8 @@ const createProductImage = async (req, res) => {
     if (req.file) {
       const protocol = req.protocol;
       const host = req.get('host');
-      imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      const baseUrl = process.env.API_BASE_URL || `${protocol}://${host}`;
+      imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
     }
 
     if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
@@ -169,7 +170,8 @@ const updateProductImage = async (req, res) => {
     if (req.file) {
       const protocol = req.protocol;
       const host = req.get('host');
-      imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+      const baseUrl = process.env.API_BASE_URL || `${protocol}://${host}`;
+      imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
     }
 
     if (imageUrl !== undefined) {
@@ -325,6 +327,7 @@ const bulkCreateProductImages = async (req, res) => {
     // Protocol and host to build URL
     const protocol = req.protocol;
     const host = req.get('host');
+    const baseUrl = process.env.API_BASE_URL || `${protocol}://${host}`;
 
     // Group items by SKU to check for duplicate primary images in the same batch
     const primaryCountPerSku = {};
@@ -363,7 +366,7 @@ const bulkCreateProductImages = async (req, res) => {
         const isPrimary = item.isPrimary === true || item.isPrimary === 'true';
         const sortOrder = item.sortOrder !== undefined ? parseInt(item.sortOrder, 10) : 0;
         const altText = item.altText || null;
-        const imageUrl = `${protocol}://${host}/uploads/${file.filename}`;
+        const imageUrl = `${baseUrl}/uploads/${file.filename}`;
 
         // Derive sellerId from authenticated seller or product's sellerId
         const finalSellerId = authenticatedSellerId || product?.sellerId || null;

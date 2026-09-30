@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -74,7 +74,8 @@ router.post(
 
       const protocol = req.protocol;
       const host = req.get("host");
-      const thumbnailUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      const baseUrl = process.env.API_BASE_URL || `${protocol}://${host}`;
+      const thumbnailUrl = `${baseUrl}/uploads/${file.filename}`;
 
       const ProductImage = require("../../models/product/ProductImage");
       const sellerId = await deriveSellerId(req);
@@ -128,7 +129,8 @@ router.post(
 
       const protocol = req.protocol;
       const host = req.get("host");
-      const mediaUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      const baseUrl = process.env.API_BASE_URL || `${protocol}://${host}`;
+      const mediaUrl = `${baseUrl}/uploads/${file.filename}`;
 
       const ProductImage = require("../../models/product/ProductImage");
       const sellerId = await deriveSellerId(req);
@@ -277,6 +279,7 @@ const batchMediaHandler = async (req, res) => {
 
     const protocol = req.protocol;
     const host = req.get("host");
+    const baseUrl = process.env.API_BASE_URL || `${protocol}://${host}`;
 
     const images = [];
     const videos = [];
@@ -305,7 +308,7 @@ const batchMediaHandler = async (req, res) => {
     const videoRecords = [];
 
     for (const file of files) {
-      const fileUrl = `${protocol}://${host}/uploads/${file.filename}`;
+      const fileUrl = `${baseUrl}/uploads/${file.filename}`;
       const isVideo = file.mimetype.startsWith("video/");
 
       if (isVideo) {
