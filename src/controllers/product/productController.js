@@ -1204,14 +1204,24 @@ const getProductById = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const isAdmin = req.admin;
-    if (!isAdmin && (product.status !== "active" || !product.isActive)) {
+    const isAdmin = !!req.admin; console.log("req.seller:", req.seller); console.log("product.sellerId:", product.sellerId); 
+    let isOwner = false;
+    if (req.seller && product.sellerId) {
+      const profile = await B2CSellerProfile.findOne({ userId: req.seller.id });
+      const reg = await SellerRegistration.findOne({ userId: req.seller.id });
+      console.log("profile:", profile?._id, "reg:", reg?._id); if ((profile && profile._id.toString() === product.sellerId.toString()) || 
+          (reg && reg._id.toString() === product.sellerId.toString())) {
+        isOwner = true;
+      }
+    }
+
+    if (!isAdmin && !isOwner && (product.status !== "active" || !product.isActive)) {
       if (product.status === "pending") {
         return res.status(403).json({ message: "Product is pending admin approval" });
       } else if (product.status === "draft") {
         return res.status(403).json({ message: "Product is currently a draft" });
       }
-      return res.status(404).json({ message: "Product not found" }); // Hide inactive from public
+      console.log("Hide inactive", isOwner, product.status); return res.status(404).json({ message: "Product not found" }); // Hide inactive from public
     }
 
     const images = await ProductImage.find({
@@ -1367,6 +1377,21 @@ const updateProduct = async (req, res) => {
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
+    }
+
+    const isAdmin = !!req.admin; console.log("req.seller:", req.seller); console.log("product.sellerId:", product.sellerId); 
+    let isOwner = false;
+    if (req.seller && product.sellerId) {
+      const profile = await B2CSellerProfile.findOne({ userId: req.seller.id });
+      const reg = await SellerRegistration.findOne({ userId: req.seller.id });
+      console.log("profile:", profile?._id, "reg:", reg?._id); if ((profile && profile._id.toString() === product.sellerId.toString()) || 
+          (reg && reg._id.toString() === product.sellerId.toString())) {
+        isOwner = true;
+      }
+    }
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: "Unauthorized to update this product" });
     }
 
     const finalPrice = regular_price !== undefined ? regular_price : price;
@@ -1628,9 +1653,9 @@ const updateProduct = async (req, res) => {
     product.downloadable =
       downloadable !== undefined ? downloadable : product.downloadable;
 
-    const isAdmin = req.admin || req.user?.role === "admin";
+    const hasAdminPrivilege = req.admin || req.user?.role === "admin";
 
-    if (!isAdmin) {
+    if (!hasAdminPrivilege) {
       let finalStatus = status !== undefined ? mapStatusToDb(status) : product.status;
       if (finalStatus !== "draft") {
         finalStatus = "pending";
