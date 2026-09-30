@@ -78,13 +78,13 @@ const sellerRegistrationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-sellerRegistrationSchema.pre('save', function(next) {
+sellerRegistrationSchema.pre('save', function() {
   if (!this.sellerId) {
     const timestamp = Date.now().toString().slice(-5);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     this.sellerId = `SEL-${timestamp}${random}`;
   }
-  next();
+  
 });
 
 module.exports = mongoose.model("SellerRegistration", sellerRegistrationSchema);
