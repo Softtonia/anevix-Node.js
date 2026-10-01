@@ -161,13 +161,15 @@ const verifyPAN = async (req, res) => {
       return res.status(400).json({ success: false, message: "Name on PAN is required" });
     }
 
-    const profile = await SellerRegistration.findOne({ userId });
+    let profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
-      return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
-    }
-
-    if (profile.currentStep !== "PAN_VERIFICATION") {
-      return res.status(400).json({ success: false, message: "Invalid onboarding step" });
+      // Auto-initialize profile if it doesn't exist
+      profile = new SellerRegistration({
+        userId,
+        onboardingStatus: "IN_PROGRESS",
+        currentStep: "PAN_VERIFICATION",
+      });
+      await profile.save();
     }
 
     let panRecord = await PanVerification.findOne({ userId });
@@ -248,11 +250,6 @@ const verifyGSTIN = async (req, res) => {
     const profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
       return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
-    }
-
-    // State Enforcement
-    if (profile.currentStep !== "GSTIN_VERIFICATION") {
-      return res.status(400).json({ success: false, message: "Invalid onboarding step. Must be at GSTIN_VERIFICATION step." });
     }
 
     const panRecord = await PanVerification.findOne({ userId });
@@ -346,11 +343,6 @@ const verifyBankAccount = async (req, res) => {
     const profile = await SellerRegistration.findOne({ userId });
     if (!profile) {
       return res.status(404).json({ success: false, message: "Seller registration not found. Please initialize onboarding first." });
-    }
-
-    // State Enforcement
-    if (profile.currentStep !== "BANK_VERIFICATION") {
-      return res.status(400).json({ success: false, message: "Invalid onboarding step. Must be at BANK_VERIFICATION step." });
     }
 
     const panRecord = await PanVerification.findOne({ userId });
