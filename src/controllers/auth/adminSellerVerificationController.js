@@ -20,9 +20,9 @@ const getAllSellerOnboardings = async (req, res) => {
     // Attach verifications
     for (let reg of registrations) {
       if (!reg.userId) continue;
-      const pan = await PanVerification.findOne({ userId: reg.userId._id }).lean();
-      const gstin = await GstinVerification.findOne({ userId: reg.userId._id }).lean();
-      const bank = await BankVerification.findOne({ userId: reg.userId._id }).lean();
+      const pan = await PanVerification.findOne({ userId: reg.userId._id }).select("+panNumber").lean();
+      const gstin = await GstinVerification.findOne({ userId: reg.userId._id }).select("+gstinNumber").lean();
+      const bank = await BankVerification.findOne({ userId: reg.userId._id }).select("+accountNumber +ifscCode").lean();
       const b2cProfile = await B2CSellerProfile.findOne({ userId: reg.userId._id }).lean();
       
       reg.panDetails = pan;
@@ -43,7 +43,7 @@ const getAllSellerOnboardings = async (req, res) => {
 const verifySellerOnboarding = async (req, res) => {
   try {
     const { id } = req.params; // SellerRegistration ID
-    const { status, reviewNotes } = req.body; // APPROVED or REJECTED
+    const { status, reviewNotes, rejectedFields } = req.body; // APPROVED or REJECTED
 
     if (!["APPROVED", "REJECTED"].includes(status)) {
        return res.status(400).json({ success: false, message: "Invalid status. Must be APPROVED or REJECTED" });
@@ -58,7 +58,8 @@ const verifySellerOnboarding = async (req, res) => {
     registration.approvalDetails = {
       reviewedBy: req.admin ? req.admin.id : null,
       reviewNotes: reviewNotes || "",
-      approvedAt: status === "APPROVED" ? new Date() : null
+      approvedAt: status === "APPROVED" ? new Date() : null,
+      rejectedFields: status === "REJECTED" && Array.isArray(rejectedFields) ? rejectedFields : []
     };
     
     if (status === "APPROVED") {

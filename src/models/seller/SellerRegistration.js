@@ -68,6 +68,12 @@ const sellerRegistrationSchema = new mongoose.Schema(
       reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" },
       reviewNotes: String,
       approvedAt: Date,
+      rejectedFields: [
+        {
+          field: String, // e.g., 'panNumber', 'bankDocument', 'companyName'
+          reason: String // e.g., 'Image is too blurry', 'Name mismatch'
+        }
+      ]
     },
     sellerTier: {
       type: String,

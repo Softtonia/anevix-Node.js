@@ -42,9 +42,9 @@ const getSellerProfile = async (req, res) => {
       );
     }
 
-    const panDetails = await PanVerification.findOne({ userId });
-    const gstinDetails = await GstinVerification.findOne({ userId });
-    const bankDetails = await BankVerification.findOne({ userId });
+    const panDetails = await PanVerification.findOne({ userId }).select("+panNumber");
+    const gstinDetails = await GstinVerification.findOne({ userId }).select("+gstinNumber");
+    const bankDetails = await BankVerification.findOne({ userId }).select("+accountNumber +ifscCode");
     
     // Also fetch the B2CSellerProfile so the frontend has the correct ID for product uploads
     const B2CSellerProfile = require("../../models/seller/B2CSellerProfile");
