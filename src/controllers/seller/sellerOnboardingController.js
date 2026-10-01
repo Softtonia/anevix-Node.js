@@ -87,7 +87,12 @@ const submitStep1 = async (req, res) => {
       return res.status(403).json({ success: false, message: "Forbidden: Not a Seller" });
     }
 
-    const { companyName, businessType, sellerType, businessAddress, residentialAddress } = req.body;
+    // Support both flat payload (old) and nested payload (new frontend flow)
+    const companyName = req.body.businessInfo?.businessName || req.body.companyName;
+    const businessType = req.body.businessInfo?.businessType || req.body.businessType;
+    const sellerType = req.body.businessInfo?.sellerType || req.body.sellerType;
+    const businessAddress = req.body.businessInfo?.businessAddress || req.body.businessAddress;
+    const residentialAddress = req.body.residentialAddress;
 
     if (!companyName || !businessType || !sellerType || !businessAddress) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
