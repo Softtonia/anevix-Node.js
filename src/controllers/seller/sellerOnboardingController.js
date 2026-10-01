@@ -452,6 +452,12 @@ const registerCompleteB2CSeller = async (req, res) => {
       await profile.save();
     }
 
+    const sellerReg = await SellerRegistration.findOne({ userId });
+    if (sellerReg) {
+      sellerReg.onboardingStatus = "UNDER_REVIEW";
+      await sellerReg.save();
+    }
+
     // Optionally update user details (like Name, Phone) if needed
     const user = await User.findById(userId);
     if (user && personalInfo) {
