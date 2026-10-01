@@ -74,6 +74,18 @@ const verifySellerOnboarding = async (req, res) => {
         await b2cProfile.save();
     }
 
+    // Update the parent User account status
+    const user = await User.findById(registration.userId);
+    if (user) {
+        if (status === "APPROVED") {
+            user.status = "active";
+            user.isAccountVerified = true;
+        } else if (status === "REJECTED") {
+            user.status = "rejected";
+        }
+        await user.save();
+    }
+
     return res.status(200).json({
       success: true,
       message: `Seller onboarding successfully marked as ${status}`,
