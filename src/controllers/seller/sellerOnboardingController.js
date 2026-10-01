@@ -457,17 +457,23 @@ const registerCompleteB2CSeller = async (req, res) => {
       // Update existing profile
       if (personalInfo) {
         for (const key in personalInfo) {
-          profile.personalInfo[key] = personalInfo[key];
+          if (personalInfo[key] !== undefined && personalInfo[key] !== null && personalInfo[key] !== "") {
+            profile.personalInfo[key] = personalInfo[key];
+          }
         }
       }
       if (businessInfo) {
         for (const key in businessInfo) {
-          profile.businessInfo[key] = businessInfo[key];
+          if (businessInfo[key] !== undefined && businessInfo[key] !== null && businessInfo[key] !== "") {
+            profile.businessInfo[key] = businessInfo[key];
+          }
         }
       }
       if (bankingInfo) {
         for (const key in bankingInfo) {
-          profile.bankingInfo[key] = bankingInfo[key];
+          if (bankingInfo[key] !== undefined && bankingInfo[key] !== null && bankingInfo[key] !== "") {
+            profile.bankingInfo[key] = bankingInfo[key];
+          }
         }
       }
       profile.status = "UNDER_REVIEW";
