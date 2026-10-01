@@ -452,6 +452,11 @@ const registerCompleteB2CSeller = async (req, res) => {
     }
 
     let profile = await B2CSellerProfile.findOne({ userId });
+    const sellerReg = await SellerRegistration.findOne({ userId });
+
+    if (sellerReg && ["UNDER_REVIEW", "APPROVED", "SUSPENDED"].includes(sellerReg.onboardingStatus)) {
+      return res.status(400).json({ success: false, message: `Your application is already ${sellerReg.onboardingStatus}. You cannot submit it again.` });
+    }
 
     if (profile) {
       // Update existing profile
@@ -490,7 +495,6 @@ const registerCompleteB2CSeller = async (req, res) => {
       await profile.save();
     }
 
-    const sellerReg = await SellerRegistration.findOne({ userId });
     if (sellerReg) {
       sellerReg.onboardingStatus = "UNDER_REVIEW";
       if (businessInfo) {
