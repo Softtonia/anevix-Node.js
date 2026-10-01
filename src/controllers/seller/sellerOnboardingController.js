@@ -455,9 +455,22 @@ const registerCompleteB2CSeller = async (req, res) => {
 
     if (profile) {
       // Update existing profile
-      profile.personalInfo = { ...profile.personalInfo, ...personalInfo };
-      profile.businessInfo = { ...profile.businessInfo, ...businessInfo };
-      profile.bankingInfo = { ...profile.bankingInfo, ...bankingInfo };
+      if (personalInfo) {
+        for (const key in personalInfo) {
+          profile.personalInfo[key] = personalInfo[key];
+        }
+      }
+      if (businessInfo) {
+        for (const key in businessInfo) {
+          profile.businessInfo[key] = businessInfo[key];
+        }
+      }
+      if (bankingInfo) {
+        for (const key in bankingInfo) {
+          profile.bankingInfo[key] = bankingInfo[key];
+        }
+      }
+      profile.status = "UNDER_REVIEW";
       await profile.save();
     } else {
       // Create new profile
