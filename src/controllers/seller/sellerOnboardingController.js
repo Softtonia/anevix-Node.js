@@ -186,7 +186,7 @@ const verifyPAN = async (req, res) => {
     }
 
     // Idempotency check
-    if (panRecord.verificationStatus === "VERIFIED" || panRecord.verificationStatus === "UNDER_REVIEW") {
+    if (profile.onboardingStatus !== "REJECTED" && (panRecord.verificationStatus === "VERIFIED" || panRecord.verificationStatus === "UNDER_REVIEW")) {
       return res.status(400).json({ 
         success: false, 
         message: `PAN is already ${panRecord.verificationStatus}`,
@@ -271,7 +271,7 @@ const verifyGSTIN = async (req, res) => {
     }
 
     // Idempotency check
-    if (gstinRecord.verificationStatus === "VERIFIED" || gstinRecord.verificationStatus === "UNDER_REVIEW") {
+    if (profile.onboardingStatus !== "REJECTED" && (gstinRecord.verificationStatus === "VERIFIED" || gstinRecord.verificationStatus === "UNDER_REVIEW")) {
       return res.status(400).json({ 
         success: false, 
         message: `GSTIN is already ${gstinRecord.verificationStatus}`,
@@ -370,7 +370,7 @@ const verifyBankAccount = async (req, res) => {
     }
 
     // Idempotency check
-    if (bankRecord.verificationStatus === "VERIFIED" || bankRecord.verificationStatus === "MANUAL_REVIEW") {
+    if (profile.onboardingStatus !== "REJECTED" && (bankRecord.verificationStatus === "VERIFIED" || bankRecord.verificationStatus === "MANUAL_REVIEW")) {
       return res.status(400).json({ 
         success: false, 
         message: `Bank account is already ${bankRecord.verificationStatus}`,
