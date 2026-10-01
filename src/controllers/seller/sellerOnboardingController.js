@@ -78,10 +78,13 @@ const submitStep1 = async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const sellerRole = await Role.findOne({ slug: "b2c-seller" });
-    const hasRole = await RoleHasUser.findOne({ role_id: sellerRole.id, user_id: userId });
-    if (!hasRole) {
-      return res.status(403).json({ success: false, message: "Forbidden: Not a B2C Seller" });
+    const b2cRole = await Role.findOne({ slug: "b2c-seller" });
+    const b2bRole = await Role.findOne({ slug: "b2b-seller" });
+    const hasB2cRole = b2cRole ? await RoleHasUser.findOne({ role_id: b2cRole.id, user_id: userId }) : null;
+    const hasB2bRole = b2bRole ? await RoleHasUser.findOne({ role_id: b2bRole.id, user_id: userId }) : null;
+    
+    if (!hasB2cRole && !hasB2bRole) {
+      return res.status(403).json({ success: false, message: "Forbidden: Not a Seller" });
     }
 
     const { companyName, businessType, sellerType, businessAddress, residentialAddress } = req.body;

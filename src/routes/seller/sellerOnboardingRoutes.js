@@ -6,7 +6,7 @@ const { getSellerProfile, submitStep1, verifyPAN, verifyGSTIN, verifyBankAccount
 const router = express.Router();
 
 router.get("/profile", authenticateJWT, requireRole("b2c-seller"), getSellerProfile);
-router.post("/step1", authenticateJWT, requireRole("b2c-seller"), submitStep1);
+router.post("/step1", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), submitStep1);
 router.post("/pan", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), verifyPAN);
 router.post("/gstin", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), verifyGSTIN);
 router.post("/bank", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), verifyBankAccount);
