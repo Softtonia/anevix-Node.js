@@ -123,7 +123,9 @@ const submitStep1 = async (req, res) => {
     }
 
     // State transition
-    profile.onboardingStatus = "IN_PROGRESS";
+    if (profile.onboardingStatus !== "REJECTED") {
+      profile.onboardingStatus = "IN_PROGRESS";
+    }
     profile.currentStep = "PAN_VERIFICATION";
 
     await profile.save();
