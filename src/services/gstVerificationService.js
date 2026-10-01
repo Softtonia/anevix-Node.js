@@ -5,10 +5,19 @@ const { verifyGstinWithCashfree } = require("./providers/cashfreeGstProvider");
  * Abstracts the specific provider away from the controller.
  */
 const verifyGSTIN = async (gstinNumber, businessName) => {
-  // We can switch providers easily here in the future
-  const result = await verifyGstinWithCashfree(gstinNumber, businessName);
-
-  return result;
+  // Fake data API
+  return {
+    success: true,
+    status: "VERIFIED",
+    gstin: gstinNumber,
+    legalName: businessName || "Fake Legal Name",
+    tradeName: "Fake Trade Name",
+    registrationStatus: "ACTIVE",
+    state: "Delhi",
+    registrationDate: "2023-01-01",
+    referenceId: `fake_gst_${Date.now()}`,
+    message: "GSTIN verified successfully (FAKE)",
+  };
 };
 
 module.exports = {

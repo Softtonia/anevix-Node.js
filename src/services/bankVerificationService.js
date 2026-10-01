@@ -5,10 +5,17 @@ const { verifyBankWithCashfree } = require("./providers/cashfreeBankProvider");
  * Abstracts the specific provider away from the controller.
  */
 const verifyBankAccount = async (accountNumber, ifscCode, accountHolderName, phoneNumber) => {
-  // We can switch providers easily here in the future
-  const result = await verifyBankWithCashfree(accountNumber, ifscCode, accountHolderName, phoneNumber);
-
-  return result;
+  // Fake data API
+  return {
+    success: true,
+    status: "VERIFIED",
+    accountHolderName: accountHolderName || "Fake Account Holder",
+    bankName: "Fake State Bank",
+    nameMatchScore: "100",
+    nameMatchResult: "EXACT_MATCH",
+    referenceId: `fake_bank_${Date.now()}`,
+    message: "Bank account verified successfully (FAKE)",
+  };
 };
 
 module.exports = {

@@ -5,10 +5,14 @@ const { verifyPanWithCashfree } = require("./providers/cashfreeProvider");
  * Abstracts the specific provider away from the controller.
  */
 const verifyPAN = async (panNumber, nameOnPan, userId) => {
-  // We can switch providers easily here in the future
-  const result = await verifyPanWithCashfree(panNumber, nameOnPan, userId);
-
-  return result;
+  // Fake data API
+  return {
+    success: true,
+    status: "VERIFIED",
+    nameOnPan: nameOnPan || "Fake Name",
+    referenceId: `fake_pan_${Date.now()}`,
+    message: "PAN verified successfully (FAKE)",
+  };
 };
 
 module.exports = {

@@ -41,7 +41,7 @@ app.use("/addresses", addressRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/auth/customer", customerAuthRoutes);
 app.use("/auth/business", businessAuthRoutes);
-app.use("/seller/onboarding", sellerOnboardingRoutes);
+app.use("/business/onboarding", sellerOnboardingRoutes);
 app.use("/api/product-categories", productCategoryRoutes);
 app.use("/api/brands", brandRoutes);
 app.use("/api/products", productRoutes);
