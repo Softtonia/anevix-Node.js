@@ -453,6 +453,14 @@ const registerCompleteB2CSeller = async (req, res) => {
     const sellerReg = await SellerRegistration.findOne({ userId });
     if (sellerReg) {
       sellerReg.onboardingStatus = "UNDER_REVIEW";
+      if (businessInfo) {
+        sellerReg.companyName = businessInfo.businessName || sellerReg.companyName;
+        sellerReg.businessType = businessInfo.businessType || sellerReg.businessType;
+        sellerReg.sellerType = businessInfo.sellerType || sellerReg.sellerType;
+        if (businessInfo.businessAddress) {
+          sellerReg.businessAddress = businessInfo.businessAddress;
+        }
+      }
       await sellerReg.save();
     }
 
