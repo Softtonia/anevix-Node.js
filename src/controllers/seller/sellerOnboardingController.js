@@ -187,10 +187,14 @@ const verifyPAN = async (req, res) => {
       panRecord = new PanVerification({ userId });
     }
 
-    // Idempotency check
-    if (profile.onboardingStatus !== "REJECTED" && (panRecord.verificationStatus === "VERIFIED" || panRecord.verificationStatus === "UNDER_REVIEW")) {
-      return res.status(400).json({ 
-        success: false, 
+    // Idempotency check: if exactly the same data and already verified, just return success
+    if (
+      (panRecord.verificationStatus === "VERIFIED" || panRecord.verificationStatus === "UNDER_REVIEW") &&
+      panRecord.panNumber === panNumber.toUpperCase() &&
+      panRecord.nameOnPan === nameOnPan
+    ) {
+      return res.status(200).json({ 
+        success: true, 
         message: `PAN is already ${panRecord.verificationStatus}`,
         panDetails: {
           verificationStatus: panRecord.verificationStatus,
@@ -272,10 +276,13 @@ const verifyGSTIN = async (req, res) => {
       gstinRecord = new GstinVerification({ userId });
     }
 
-    // Idempotency check
-    if (profile.onboardingStatus !== "REJECTED" && (gstinRecord.verificationStatus === "VERIFIED" || gstinRecord.verificationStatus === "UNDER_REVIEW")) {
-      return res.status(400).json({ 
-        success: false, 
+    // Idempotency check: if exactly the same data and already verified, just return success
+    if (
+      (gstinRecord.verificationStatus === "VERIFIED" || gstinRecord.verificationStatus === "UNDER_REVIEW") &&
+      gstinRecord.gstinNumber === gstinNumber
+    ) {
+      return res.status(200).json({ 
+        success: true, 
         message: `GSTIN is already ${gstinRecord.verificationStatus}`,
         gstinDetails: {
           verificationStatus: gstinRecord.verificationStatus,
@@ -371,10 +378,14 @@ const verifyBankAccount = async (req, res) => {
       bankRecord = new BankVerification({ userId });
     }
 
-    // Idempotency check
-    if (profile.onboardingStatus !== "REJECTED" && (bankRecord.verificationStatus === "VERIFIED" || bankRecord.verificationStatus === "MANUAL_REVIEW")) {
-      return res.status(400).json({ 
-        success: false, 
+    // Idempotency check: if exactly the same data and already verified, just return success
+    if (
+      (bankRecord.verificationStatus === "VERIFIED" || bankRecord.verificationStatus === "MANUAL_REVIEW") &&
+      bankRecord.accountNumber === accountNumber &&
+      bankRecord.ifscCode === ifscCode
+    ) {
+      return res.status(200).json({ 
+        success: true, 
         message: `Bank account is already ${bankRecord.verificationStatus}`,
         bankDetails: {
           verificationStatus: bankRecord.verificationStatus,
