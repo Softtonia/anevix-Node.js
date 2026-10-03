@@ -50,6 +50,9 @@ const getSellerProfile = async (req, res) => {
     const B2CSellerProfile = require("../../models/seller/B2CSellerProfile");
     const b2cProfile = await B2CSellerProfile.findOne({ userId });
 
+    // Fetch user details for email, phone number, and name
+    const user = await User.findById(userId).select("firstName lastName email phoneNumber");
+
     return res.status(200).json({
       success: true,
       profile: {
@@ -57,7 +60,10 @@ const getSellerProfile = async (req, res) => {
         b2cProfileId: b2cProfile ? b2cProfile._id : null,
         panDetails,
         gstinDetails,
-        bankDetails
+        bankDetails,
+        email: user?.email || null,
+        phoneNumber: user?.phoneNumber || null,
+        name: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : null
       },
       b2cProfile: b2cProfile ? b2cProfile.toObject() : null,
     });
