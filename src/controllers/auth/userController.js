@@ -1051,6 +1051,68 @@ const getUserProfile = async (req, res) => {
   }
 };
 
+const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select(
+      "-password -__v -emailOtpHash -mobileOtpHash -passwordResetTokenHash"
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let profileData = null;
+    let b2cProfileData = null;
+    
+    const sellerReg = await SellerRegistration.findOne({ userId: id });
+    if (sellerReg) {
+      const B2CSellerProfile = require("../../models/seller/B2CSellerProfile");
+      const PanVerification = require("../../models/seller/PanVerification");
+      const GstinVerification = require("../../models/seller/GstinVerification");
+      const BankVerification = require("../../models/seller/BankVerification");
+
+      const b2cProfile = await B2CSellerProfile.findOne({ userId: id });
+      const panDetails = await PanVerification.findOne({ userId: id }).select("+panNumber");
+      const gstinDetails = await GstinVerification.findOne({ userId: id }).select("+gstinNumber");
+      const bankDetails = await BankVerification.findOne({ userId: id }).select("+accountNumber +ifscCode");
+
+      b2cProfileData = b2cProfile ? b2cProfile.toObject() : null;
+
+      // Notice here we do NOT delete statusHistory so the admin CAN see it!
+      profileData = {
+        ...sellerReg.toObject(),
+        b2cProfileId: b2cProfile ? b2cProfile._id : null,
+        panDetails,
+        gstinDetails,
+        bankDetails,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        profileImage: user.profileImage,
+        dateOfBirth: user.dateOfBirth,
+        lastLoginAt: user.lastLoginAt,
+        is_default: user.is_default,
+        userCreatedAt: user.createdAt,
+        userUpdatedAt: user.updatedAt,
+      };
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+      profile: profileData,
+      b2cProfile: b2cProfileData
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
+
 const logoutUser = async (req, res) => {
   try {
     return res.status(200).json({
@@ -1910,4 +1972,5 @@ module.exports = {
   verifyRegistrationMobileOtp,
   resendRegistrationEmailOtp,
   resendRegistrationMobileOtp,
+  getUserById,
 };

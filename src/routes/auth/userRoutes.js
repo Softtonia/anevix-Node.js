@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const authenticateJWT = require("../../middleware/authenticateJWT");
 const requireRole = require("../../middleware/roleMiddleware");
 const adminAuth = require("../../middleware/adminAuth");
@@ -15,14 +15,14 @@ const {
   addOrder,
   addToWishlist,
   addSavedPaymentMethod,
+  getUserById,
 } = require("../../controllers/auth/userController");
 
 router.get("/", adminAuth, getAllUsers);
-router.post("/add", adminAuth, addUser);
-router.delete("/delete/:id", adminAuth, deleteUser);
-router.put("/edit/:id", adminAuth, editUser);
-
 router.get("/profile", authenticateJWT, getUserProfile);
+router.get("/:id", adminAuth, getUserById);
+
+router.post("/add", adminAuth, addUser);
 
 // Logout User
 router.post("/logout", authenticateJWT, logoutUser);

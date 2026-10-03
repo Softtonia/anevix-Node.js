@@ -69,10 +69,13 @@ const getSellerProfile = async (req, res) => {
       "firstName lastName email phoneNumber profileImage dateOfBirth lastLoginAt is_default createdAt updatedAt",
     );
 
+    const profileObj = profile.toObject();
+    delete profileObj.statusHistory;
+
     return res.status(200).json({
       success: true,
       profile: {
-        ...profile.toObject(),
+        ...profileObj,
         b2cProfileId: b2cProfile ? b2cProfile._id : null,
         panDetails,
         gstinDetails,

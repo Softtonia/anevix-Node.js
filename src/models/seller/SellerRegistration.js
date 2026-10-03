@@ -80,17 +80,35 @@ const sellerRegistrationSchema = new mongoose.Schema(
       enum: ["BRONZE", "SILVER", "GOLD", "PLATINUM", null],
       default: null,
     },
+    statusHistory: [
+      {
+        status: String,
+        timestamp: { type: Date, default: Date.now },
+        notes: String,
+        actionBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin" }
+      }
+    ],
   },
   { timestamps: true }
 );
 
-sellerRegistrationSchema.pre('save', function() {
+sellerRegistrationSchema.pre('save', function(next) {
   if (!this.sellerId) {
     const timestamp = Date.now().toString().slice(-5);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     this.sellerId = `SEL-${timestamp}${random}`;
   }
   
+  if (this.isModified('onboardingStatus')) {
+    this.statusHistory.push({
+      status: this.onboardingStatus,
+      timestamp: new Date(),
+      notes: this.approvalDetails?.reviewNotes || "",
+      actionBy: this.approvalDetails?.reviewedBy || null
+    });
+  }
+  
+  next();
 });
 
 module.exports = mongoose.model("SellerRegistration", sellerRegistrationSchema);
