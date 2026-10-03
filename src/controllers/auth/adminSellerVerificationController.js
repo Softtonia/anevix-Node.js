@@ -62,6 +62,11 @@ const getSellerOnboardingById = async (req, res) => {
       reg.bankDetails = bank;
       reg.b2cProfile = b2cProfile;
     }
+    
+    // Fallback for older records without statusHistory
+    if (!reg.statusHistory) {
+      reg.statusHistory = [];
+    }
 
     return res.status(200).json({
       success: true,
