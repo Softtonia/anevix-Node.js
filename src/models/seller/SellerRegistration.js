@@ -92,7 +92,7 @@ const sellerRegistrationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-sellerRegistrationSchema.pre('save', function(next) {
+sellerRegistrationSchema.pre('save', function() {
   if (!this.sellerId) {
     const timestamp = Date.now().toString().slice(-5);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -107,8 +107,6 @@ sellerRegistrationSchema.pre('save', function(next) {
       actionBy: this.approvalDetails?.reviewedBy || null
     });
   }
-  
-  next();
 });
 
 module.exports = mongoose.model("SellerRegistration", sellerRegistrationSchema);

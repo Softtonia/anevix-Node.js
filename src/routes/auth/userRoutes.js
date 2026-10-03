@@ -19,6 +19,7 @@ const {
 } = require("../../controllers/auth/userController");
 
 router.get("/", adminAuth, getAllUsers);
+router.post("/", adminAuth, addUser);
 router.get("/profile", authenticateJWT, getUserProfile);
 router.get("/:id", adminAuth, getUserById);
 
