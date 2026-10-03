@@ -64,9 +64,9 @@ const getSellerProfile = async (req, res) => {
     const B2CSellerProfile = require("../../models/seller/B2CSellerProfile");
     const b2cProfile = await B2CSellerProfile.findOne({ userId });
 
-    // Fetch user details for email, phone number, and name
+    // Fetch user details
     const user = await User.findById(userId).select(
-      "firstName lastName email phoneNumber",
+      "firstName lastName email phoneNumber profileImage dateOfBirth lastLoginAt is_default createdAt updatedAt",
     );
 
     return res.status(200).json({
@@ -82,6 +82,12 @@ const getSellerProfile = async (req, res) => {
         name: user
           ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
           : null,
+        profileImage: user?.profileImage || null,
+        dateOfBirth: user?.dateOfBirth || null,
+        lastLoginAt: user?.lastLoginAt || null,
+        is_default: user?.is_default || false,
+        userCreatedAt: user?.createdAt || null,
+        userUpdatedAt: user?.updatedAt || null,
       },
       b2cProfile: b2cProfile ? b2cProfile.toObject() : null,
     });
