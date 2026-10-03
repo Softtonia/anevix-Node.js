@@ -2,7 +2,7 @@ const express = require("express");
 const adminAuth = require("../../middleware/adminAuth");
 
 const { loginAdmin, forgotPassword, resetPassword, getAdminProfile } = require("../../controllers/auth/adminController.js");
-const { getAllSellerOnboardings, verifySellerOnboarding } = require("../../controllers/auth/adminSellerVerificationController");
+const { getAllSellerOnboardings, verifySellerOnboarding, getSellerOnboardingById } = require("../../controllers/auth/adminSellerVerificationController");
 
 const router = express.Router();
 
@@ -14,6 +14,7 @@ router.get("/profile", adminAuth, getAdminProfile);
 
 // Seller Verification Routes
 router.get("/seller-onboardings", adminAuth, getAllSellerOnboardings);
+router.get("/seller-onboardings/:id", adminAuth, getSellerOnboardingById);
 router.post("/seller-onboardings/:id/verify", adminAuth, verifySellerOnboarding);
 
 module.exports = router;

@@ -40,6 +40,38 @@ const getAllSellerOnboardings = async (req, res) => {
   }
 };
 
+const getSellerOnboardingById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reg = await SellerRegistration.findById(id)
+      .populate("userId", "firstName lastName email phoneNumber profileImage dateOfBirth createdAt updatedAt is_default lastLoginAt")
+      .lean();
+
+    if (!reg) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    if (reg.userId) {
+      const pan = await PanVerification.findOne({ userId: reg.userId._id }).select("+panNumber").lean();
+      const gstin = await GstinVerification.findOne({ userId: reg.userId._id }).select("+gstinNumber").lean();
+      const bank = await BankVerification.findOne({ userId: reg.userId._id }).select("+accountNumber +ifscCode").lean();
+      const b2cProfile = await B2CSellerProfile.findOne({ userId: reg.userId._id }).lean();
+      
+      reg.panDetails = pan;
+      reg.gstinDetails = gstin;
+      reg.bankDetails = bank;
+      reg.b2cProfile = b2cProfile;
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: reg
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Error fetching onboarding", error: error.message });
+  }
+};
+
 const verifySellerOnboarding = async (req, res) => {
   try {
     const { id } = req.params; // SellerRegistration ID
@@ -97,4 +129,4 @@ const verifySellerOnboarding = async (req, res) => {
   }
 };
 
-module.exports = { getAllSellerOnboardings, verifySellerOnboarding };
+module.exports = { getAllSellerOnboardings, verifySellerOnboarding, getSellerOnboardingById };
