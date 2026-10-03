@@ -1,11 +1,12 @@
 const express = require("express");
 const authenticateJWT = require("../../middleware/authenticateJWT");
 const requireRole = require("../../middleware/roleMiddleware");
-const { getSellerProfile, submitStep1, verifyPAN, verifyGSTIN, verifyBankAccount, registerCompleteB2CSeller, sendMobileOtp, verifyMobileOtp } = require("../../controllers/seller/sellerOnboardingController");
+const { getSellerProfile, submitStep1, verifyPAN, verifyGSTIN, verifyBankAccount, registerCompleteB2CSeller, sendMobileOtp, verifyMobileOtp, updateSellerProfile } = require("../../controllers/seller/sellerOnboardingController");
 
 const router = express.Router();
 
 router.get("/profile", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), getSellerProfile);
+router.put("/profile", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), updateSellerProfile);
 router.post("/step1", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), submitStep1);
 router.post("/pan", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), verifyPAN);
 router.post("/gstin", authenticateJWT, requireRole("b2c-seller", "b2b-seller"), verifyGSTIN);

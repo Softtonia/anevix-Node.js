@@ -787,6 +787,68 @@ const verifyMobileOtp = async (req, res) => {
   }
 };
 
+const updateSellerProfile = async (req, res) => {
+  try {
+    const userId = req.b2cSeller?.id || req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const { personalInfo, businessInfo, bankingInfo, profileImage } = req.body;
+
+    let profile = await B2CSellerProfile.findOne({ userId });
+    if (!profile) return res.status(404).json({ success: false, message: "Profile not found" });
+
+    if (personalInfo) {
+      for (const key in personalInfo) {
+        if (personalInfo[key] !== undefined) profile.personalInfo[key] = personalInfo[key];
+      }
+    }
+    if (businessInfo) {
+      for (const key in businessInfo) {
+        if (businessInfo[key] !== undefined) profile.businessInfo[key] = businessInfo[key];
+      }
+    }
+    if (bankingInfo) {
+      for (const key in bankingInfo) {
+        if (bankingInfo[key] !== undefined) profile.bankingInfo[key] = bankingInfo[key];
+      }
+    }
+    await profile.save();
+
+    // Update SellerRegistration
+    const sellerReg = await SellerRegistration.findOne({ userId });
+    if (sellerReg && businessInfo) {
+      if (businessInfo.businessName !== undefined) sellerReg.companyName = businessInfo.businessName;
+      if (businessInfo.businessType !== undefined) sellerReg.businessType = businessInfo.businessType;
+      if (businessInfo.sellerType !== undefined) sellerReg.sellerType = businessInfo.sellerType;
+      if (businessInfo.businessAddress !== undefined) sellerReg.businessAddress = businessInfo.businessAddress;
+      await sellerReg.save();
+    }
+
+    // Update User
+    const user = await User.findById(userId);
+    if (user) {
+      if (personalInfo?.fullName) {
+        const names = personalInfo.fullName.split(" ");
+        user.firstName = names[0];
+        user.lastName = names.slice(1).join(" ");
+      }
+      if (personalInfo?.mobile !== undefined) user.phoneNumber = personalInfo.mobile;
+      if (personalInfo?.email !== undefined) user.email = personalInfo.email;
+      if (personalInfo?.dateOfBirth !== undefined) user.dateOfBirth = personalInfo.dateOfBirth;
+      if (profileImage !== undefined) user.profileImage = profileImage;
+      await user.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      profile,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getSellerProfile,
   submitStep1,
@@ -796,4 +858,5 @@ module.exports = {
   registerCompleteB2CSeller,
   sendMobileOtp,
   verifyMobileOtp,
+  updateSellerProfile,
 };
