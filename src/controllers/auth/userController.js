@@ -1,4 +1,4 @@
-﻿const User = require("../../models/auth/User");
+const User = require("../../models/auth/User");
 const Role = require("../../models/auth/Role");
 const RoleHasUser = require("../../models/auth/RoleHasUser");
 const Address = require("../../models/address/Address");
@@ -902,11 +902,11 @@ const verifyMobileOTP = async (req, res) => {
   }
 };
 
-const authenticateUser = async (email, password) => {
+const authenticateUser = async (email, password, options = {}) => {
   const user = await User.findOne({ email: email.toLowerCase().trim() });
   if (!user) throw new Error("Invalid email or password");
   
-  if (user.status !== "active") throw new Error("Account is not active");
+  if (!options.allowInactive && user.status !== "active") throw new Error("Account is not active");
   if (!user.isEmailVerified) throw new Error("Please verify your email first");
   
   const isPasswordMatch = await bcrypt.compare(password, user.password);
@@ -943,6 +943,7 @@ const loginCustomer = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        isAccountActive: user.status === "active"
       },
     });
   } catch (error) {
@@ -957,7 +958,7 @@ const loginCustomer = async (req, res) => {
 const loginBusiness = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await authenticateUser(email, password);
+    const user = await authenticateUser(email, password, { allowInactive: true });
 
     const rolePivots = await RoleHasUser.find({ user_id: user._id });
     const roleIds = rolePivots.map(p => p.role_id);
@@ -983,6 +984,7 @@ const loginBusiness = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        isAccountActive: user.status === "active"
       },
     });
   } catch (error) {
